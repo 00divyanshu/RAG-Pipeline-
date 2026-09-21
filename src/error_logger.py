@@ -97,3 +97,4 @@ def clear_all_errors():
             ERROR_LOG_PATH.unlink(missing_ok=True)
     except Exception:
         pass
+

@@ -129,7 +129,8 @@ def main():
             
             with st.expander("🛠️ Host Diagnostics & Error Logs", expanded=get_unacknowledged_count() > 0):
                 st.markdown("**Cloud Connectivity Status:**")
-                st.write(f"- Google Gemini LLM: `🟢 Active ({config.LLM_MODEL})`")
+                provider_display = "Groq LPU" if config.LLM_PROVIDER == "groq" else "Google Gemini"
+                st.write(f"- LLM Engine: `🟢 Active ({provider_display}: {config.LLM_MODEL})`")
                 st.write(f"- Pinecone Cloud DB: `🟢 Connected ({config.PINECONE_INDEX_NAME})`")
 
                 if st.button("🔄 Test Live Cloud Connections", use_container_width=True):
@@ -169,8 +170,13 @@ def main():
 
             with st.expander("🔑 Cloud API Credentials", expanded=False):
                 st.caption("Host-only API key configuration:")
+                st_groq_key = st.text_input(
+                    "Groq API Key (High-Speed LLM)",
+                    value=config.GROQ_API_KEY,
+                    type="password",
+                )
                 st_google_key = st.text_input(
-                    "Google Gemini API Key",
+                    "Google Gemini API Key (Embeddings)",
                     value=config.GOOGLE_API_KEY,
                     type="password",
                 )
@@ -185,8 +191,13 @@ def main():
                 )
 
                 if st.button("💾 Save Credentials", use_container_width=True):
-                    if st_google_key and st_pinecone_key:
-                        config.set_runtime_credentials(st_google_key, st_pinecone_key, st_index_name)
+                    if (st_groq_key or st_google_key) and st_pinecone_key:
+                        config.set_runtime_credentials(
+                            google_api_key=st_google_key,
+                            pinecone_api_key=st_pinecone_key,
+                            index_name=st_index_name,
+                            groq_api_key=st_groq_key,
+                        )
                         st.cache_resource.clear()
                         st.toast("Credentials updated successfully!", icon="✅")
                         st.rerun()
@@ -343,13 +354,15 @@ def main():
 
         # Assistant generation with token streaming for ultra-fast response
         with st.chat_message("assistant"):
-            if not config.GOOGLE_API_KEY:
+            active_key = config.GROQ_API_KEY if config.LLM_PROVIDER == "groq" else config.GOOGLE_API_KEY
+            if not active_key:
+                provider_title = "Groq" if config.LLM_PROVIDER == "groq" else "Google Gemini"
                 record_error(
-                    service="Google Gemini AI",
-                    user_message="Gemini API Key is missing during chat interaction",
+                    service=f"{provider_title} AI",
+                    user_message=f"{provider_title} API Key is missing during chat interaction",
                 )
                 if is_host:
-                    err_msg = "⚠️ Google Gemini API Key is missing. Please enter your API key in the Host Administration section or Streamlit Cloud Secrets."
+                    err_msg = f"⚠️ {provider_title} API Key is missing. Please enter your API key in the Host Administration section or Streamlit Cloud Secrets."
                     st.error(err_msg)
                 else:
                     err_msg = "⚠️ The AI assistant service is temporarily unavailable. Please try again shortly."

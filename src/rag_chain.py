@@ -61,9 +61,24 @@ class RAGPipeline:
     ):
         self.retriever = retriever
         active_provider = (provider or config.LLM_PROVIDER).lower()
+        groq_key = config.GROQ_API_KEY
         google_key = config.GOOGLE_API_KEY
 
-        if active_provider == "gemini" or google_key:
+        if active_provider == "groq" or (groq_key and active_provider != "ollama"):
+            if not groq_key:
+                raise ValueError(
+                    "Groq API Key is missing! "
+                    "Please configure GROQ_API_KEY in the Host Administration panel or Streamlit Cloud Secrets."
+                )
+            from langchain_groq import ChatGroq
+            model = llm_model or config.GROQ_LLM_MODEL
+            logger.info(f"Using Groq Cloud LLM: {model}")
+            self.llm = ChatGroq(
+                model_name=model,
+                groq_api_key=groq_key,
+                temperature=temperature,
+            )
+        elif active_provider == "gemini" or google_key:
             if not google_key:
                 raise ValueError(
                     "Google Gemini API Key is missing! "
@@ -79,8 +94,8 @@ class RAGPipeline:
         else:
             if config.is_cloud_environment():
                 raise ValueError(
-                    "Running in the cloud (Streamlit Community Cloud), but GOOGLE_API_KEY is not configured! "
-                    "Local Ollama is not available in cloud environments. Please enter your Google API Key in the sidebar or Streamlit Secrets."
+                    "Running in cloud, but neither GROQ_API_KEY nor GOOGLE_API_KEY is configured! "
+                    "Local Ollama is not available in cloud environments. Please enter your API Key."
                 )
             from langchain_ollama import ChatOllama
             model = llm_model or config.OLLAMA_LLM_MODEL
