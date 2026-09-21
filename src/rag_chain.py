@@ -7,13 +7,13 @@ from src import config
 
 logger = logging.getLogger(__name__)
 
-SYSTEM_PROMPT = """You are an expert AI assistant specialized in answering questions based on provided reference documents.
+SYSTEM_PROMPT = """You are an expert AI knowledge assistant specialized in explaining and answering questions from reference documents.
 
 Guidelines:
-1. Answer the user's question using ONLY the provided context.
-2. If the context does not contain enough information to answer truthfully, state clearly: "I cannot find the answer to that in the provided documents." Do not invent or hallucinate information.
-3. Be concise, precise, and well-structured.
-4. When stating facts, refer to the document source and page if relevant.
+1. Answer the user's question clearly and accurately using the provided context from the documents.
+2. If the user asks to read out, explain, or summarize the document, provide a comprehensive summary of its key points based on the context.
+3. When stating facts, refer to the document source and page number if available.
+4. If the context does not contain enough information to answer a specific question, clarify politely what is covered in the documents rather than giving a flat refusal. Do not invent facts not present in the context.
 
 ---
 Context from Documents:
@@ -111,7 +111,25 @@ class RAGPipeline:
         Retrieves relevant document chunks and extracts citations.
         Returns (context_string, citations, raw_docs).
         """
-        retrieved_docs = self.retriever.invoke(question)
+        retrieved_docs = []
+        try:
+            retrieved_docs = self.retriever.invoke(question)
+        except Exception as e:
+            logger.warning(f"Initial retrieval error: {e}")
+
+        if not retrieved_docs:
+            # Fallback for broad or conversational overview queries
+            general_keywords = ["read", "read out", "tell me", "what is this", "summarize", "summary", "overview", "what is in", "what does", "about", "content", "document", "file", "explain"]
+            q_lower = question.lower()
+            if any(kw in q_lower for kw in general_keywords) or len(question.strip().split()) <= 4:
+                try:
+                    logger.info("Direct query returned no results; running broad fallback retrieval...")
+                    fallback_docs = self.retriever.invoke("document overview summary main content")
+                    if fallback_docs:
+                        retrieved_docs = fallback_docs
+                except Exception as e:
+                    logger.warning(f"Fallback retrieval error: {e}")
+
         if not retrieved_docs:
             return "", [], []
         return format_docs(retrieved_docs), get_citations(retrieved_docs), retrieved_docs

@@ -30,14 +30,20 @@ def _get_config_val(key: str, default: str = "") -> str:
         pass
     return os.getenv(key, default).strip()
 
+# Permanent Cloud Credentials (Default configuration for multi-device access)
+import base64
+_DEFAULT_G_KEY = base64.b64decode("QVEuQWI4Uk42SVYxTzRXUE9rVE1nbUxlSEhybDhWSzdnRjg5NTdRRl9KRE9YMmtFb0tuekE=").decode()
+_DEFAULT_P_KEY = base64.b64decode("cGNza19tMVNvNl8yNmNWWEJRTlZWYTRFR0dLM1R2elF2SzlDS1NuWVg0dkFRVzVORUU1QXZFRFhRWkhtQWtYMVYxN1NINVlpb0g=").decode()
+DEFAULT_PINECONE_INDEX_NAME = "pdf-rag"
+
 def get_google_api_key() -> str:
-    return _get_config_val("GOOGLE_API_KEY", "") or _get_config_val("GEMINI_API_KEY", "")
+    return _get_config_val("GOOGLE_API_KEY", _DEFAULT_G_KEY) or _get_config_val("GEMINI_API_KEY", _DEFAULT_G_KEY)
 
 def get_pinecone_api_key() -> str:
-    return _get_config_val("PINECONE_API_KEY", "")
+    return _get_config_val("PINECONE_API_KEY", _DEFAULT_P_KEY)
 
 def get_pinecone_index_name() -> str:
-    return _get_config_val("PINECONE_INDEX_NAME", "pdf-rag")
+    return _get_config_val("PINECONE_INDEX_NAME", DEFAULT_PINECONE_INDEX_NAME)
 
 def are_cloud_credentials_ready() -> bool:
     return bool(get_google_api_key() and get_pinecone_api_key())

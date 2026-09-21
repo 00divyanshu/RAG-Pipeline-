@@ -284,7 +284,18 @@ def main():
                     context_str, citations, _ = pipeline.retrieve(user_query)
 
                 if not context_str:
-                    fallback_text = "I cannot find the answer to that in the provided documents."
+                    indexed_docs = list_indexed_documents(vector_store)
+                    if indexed_docs:
+                        doc_list_str = ", ".join([f"`{d['filename']}`" for d in indexed_docs if d.get('chunks', 0) > 0] or [f"`{d['filename']}`" for d in indexed_docs])
+                        fallback_text = (
+                            f"I couldn't find specific sections for that query, but I have access to these documents in your cloud knowledge base: {doc_list_str}.\n\n"
+                            "Try asking:\n"
+                            "- *'Summarize the document'*\n"
+                            "- *'What are the key points?'*\n"
+                            "- Or ask about specific topics inside them!"
+                        )
+                    else:
+                        fallback_text = "No document chunks found in your database. Please upload and ingest a PDF in the sidebar to start asking questions."
                     st.markdown(fallback_text)
                     st.session_state.messages.append({
                         "role": "assistant",
