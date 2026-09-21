@@ -37,8 +37,8 @@ DEFAULT_VECTOR_DB = "pinecone" if PINECONE_API_KEY else "chroma"
 VECTOR_DB_PROVIDER = _get_config_val("VECTOR_DB_PROVIDER", DEFAULT_VECTOR_DB).lower()
 
 # Model Names
-GEMINI_LLM_MODEL = _get_config_val("GEMINI_LLM_MODEL", "gemini-1.5-flash")
-GEMINI_EMBEDDING_MODEL = _get_config_val("GEMINI_EMBEDDING_MODEL", "models/text-embedding-004")
+GEMINI_LLM_MODEL = _get_config_val("GEMINI_LLM_MODEL", "gemini-3.5-flash")
+GEMINI_EMBEDDING_MODEL = _get_config_val("GEMINI_EMBEDDING_MODEL", "models/gemini-embedding-001")
 
 OLLAMA_BASE_URL = _get_config_val("OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_LLM_MODEL = _get_config_val("LLM_MODEL", "qwen2.5-coder:7b")

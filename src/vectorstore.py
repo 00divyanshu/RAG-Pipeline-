@@ -45,10 +45,10 @@ def get_pinecone_index():
     
     existing_indexes = [idx.name for idx in pc.list_indexes()]
     if index_name not in existing_indexes:
-        logger.info(f"Creating Pinecone serverless index '{index_name}' (dimension 768)...")
+        logger.info(f"Creating Pinecone serverless index '{index_name}' (dimension 3072)...")
         pc.create_index(
             name=index_name,
-            dimension=768,  # Gemini text-embedding-004 dimension
+            dimension=3072,  # Gemini embedding dimension
             metric="cosine",
             spec=ServerlessSpec(cloud="aws", region="us-east-1"),
         )

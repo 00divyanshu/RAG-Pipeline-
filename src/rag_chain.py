@@ -69,7 +69,6 @@ class RAGPipeline:
             self.llm = ChatGoogleGenerativeAI(
                 model=model,
                 google_api_key=config.GOOGLE_API_KEY,
-                temperature=temperature,
             )
         else:
             from langchain_ollama import ChatOllama
