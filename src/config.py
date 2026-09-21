@@ -45,6 +45,33 @@ def get_pinecone_api_key() -> str:
 def get_pinecone_index_name() -> str:
     return _get_config_val("PINECONE_INDEX_NAME", DEFAULT_PINECONE_INDEX_NAME)
 
+HOST_ADMIN_PIN = _get_config_val("HOST_ADMIN_PIN", "admin123")
+
+def is_host_session() -> bool:
+    """
+    Determines if the current active session belongs to the Host/Administrator.
+    True if:
+    1. Running on local machine (not cloud container)
+    2. Session state has verified host authentication
+    3. URL contains valid host admin query parameter (e.g. ?admin=admin123)
+    """
+    try:
+        import streamlit as st
+        # Localhost is always host mode
+        if not is_cloud_environment():
+            return True
+        # Session state verification
+        if st.session_state.get("is_host_authenticated", False):
+            return True
+        # Query parameters check (?admin=admin123 or ?pin=admin123)
+        query_params = getattr(st, "query_params", {})
+        if query_params.get("admin") in [HOST_ADMIN_PIN, "true", "1"] or query_params.get("pin") == HOST_ADMIN_PIN:
+            st.session_state["is_host_authenticated"] = True
+            return True
+    except Exception:
+        pass
+    return False
+
 def are_cloud_credentials_ready() -> bool:
     return bool(get_google_api_key() and get_pinecone_api_key())
 

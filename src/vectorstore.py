@@ -135,13 +135,23 @@ def index_documents(
                 logger.warning(f"Error resetting Pinecone index: {e}")
 
         logger.info(f"Indexing {len(documents)} document chunks into cloud Pinecone...")
-        vector_store = PineconeVectorStore.from_documents(
-            documents=documents,
-            embedding=embeddings,
-            index_name=config.PINECONE_INDEX_NAME,
-        )
-        logger.info("Cloud indexing completed successfully.")
-        return vector_store
+        try:
+            vector_store = PineconeVectorStore.from_documents(
+                documents=documents,
+                embedding=embeddings,
+                index_name=config.PINECONE_INDEX_NAME,
+            )
+            logger.info("Cloud indexing completed successfully.")
+            return vector_store
+        except Exception as e:
+            logger.error(f"Pinecone indexing error: {e}")
+            from src.error_logger import record_error
+            record_error(
+                service="Pinecone Cloud Index",
+                user_message="Document chunk indexing into Pinecone failed",
+                exception=e,
+            )
+            raise e
     else:
         persist_path = Path(persist_directory or config.CHROMA_PERSIST_DIR)
         persist_path.mkdir(parents=True, exist_ok=True)
@@ -199,6 +209,15 @@ def delete_document_by_name(
             success = True
     except Exception as e:
         logger.error(f"Error deleting vectors for '{filename}': {e}")
+        try:
+            from src.error_logger import record_error
+            record_error(
+                service="Pinecone Cloud Index",
+                user_message=f"Failed to delete document vectors for '{filename}'",
+                exception=e,
+            )
+        except Exception:
+            pass
 
     # Remove physical file if docs_dir is specified
     if docs_dir:
@@ -240,6 +259,15 @@ def list_indexed_documents(
                     counts[fn] = counts.get(fn, 0) + 1
     except Exception as e:
         logger.warning(f"Could not fetch document counts from vector store: {e}")
+        try:
+            from src.error_logger import record_error
+            record_error(
+                service="Vector Store Query",
+                user_message="Failed to fetch indexed documents list",
+                exception=e,
+            )
+        except Exception:
+            pass
 
     # Also include any local files not yet counted
     if docs_dir and Path(docs_dir).exists():

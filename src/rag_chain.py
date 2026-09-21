@@ -111,11 +111,17 @@ class RAGPipeline:
         Retrieves relevant document chunks and extracts citations.
         Returns (context_string, citations, raw_docs).
         """
+        from src.error_logger import record_error
         retrieved_docs = []
         try:
             retrieved_docs = self.retriever.invoke(question)
         except Exception as e:
-            logger.warning(f"Initial retrieval error: {e}")
+            logger.error(f"Retrieval error: {e}")
+            record_error(
+                service="Pinecone Vector Database",
+                user_message="Document vector retrieval failed",
+                exception=e,
+            )
 
         if not retrieved_docs:
             # Fallback for broad or conversational overview queries
@@ -129,6 +135,11 @@ class RAGPipeline:
                         retrieved_docs = fallback_docs
                 except Exception as e:
                     logger.warning(f"Fallback retrieval error: {e}")
+                    record_error(
+                        service="Pinecone Vector Database",
+                        user_message="Fallback document retrieval failed",
+                        exception=e,
+                    )
 
         if not retrieved_docs:
             return "", [], []
@@ -137,34 +148,60 @@ class RAGPipeline:
     def stream_response(self, context_str: str, question: str) -> Iterator[str]:
         """
         Yields tokens in real-time for fast streaming in Streamlit.
+        Safely catches service disconnects and logs them to the host.
         """
-        for chunk in self.generation_chain.stream({
-            "context": context_str,
-            "question": question,
-        }):
-            yield chunk
+        from src.error_logger import record_error
+        try:
+            for chunk in self.generation_chain.stream({
+                "context": context_str,
+                "question": question,
+            }):
+                yield chunk
+        except Exception as e:
+            logger.error(f"Generation error: {e}")
+            record_error(
+                service="Google Gemini AI",
+                user_message="Response generation failed during token streaming",
+                exception=e,
+            )
+            yield "\n\n*(Service is temporarily experiencing connectivity issues. Please try again shortly.)*"
 
     def ask(self, question: str) -> Dict[str, Any]:
         """
         Synchronous end-to-end RAG execution for CLI / non-streaming queries.
         """
-        context_str, citations, retrieved_docs = self.retrieve(question)
-        if not context_str:
+        from src.error_logger import record_error
+        try:
+            context_str, citations, retrieved_docs = self.retrieve(question)
+            if not context_str:
+                return {
+                    "question": question,
+                    "answer": "No relevant documents or information found in the vector database.",
+                    "citations": [],
+                    "source_documents": [],
+                }
+
+            answer = self.generation_chain.invoke({
+                "context": context_str,
+                "question": question,
+            })
+
             return {
                 "question": question,
-                "answer": "No relevant documents or information found in the vector database.",
+                "answer": answer.strip(),
+                "citations": citations,
+                "source_documents": retrieved_docs,
+            }
+        except Exception as e:
+            logger.error(f"Ask query execution error: {e}")
+            record_error(
+                service="AI Pipeline",
+                user_message="Full RAG pipeline query execution failed",
+                exception=e,
+            )
+            return {
+                "question": question,
+                "answer": "The system encountered a temporary connection issue. Please try again in a moment.",
                 "citations": [],
                 "source_documents": [],
             }
-
-        answer = self.generation_chain.invoke({
-            "context": context_str,
-            "question": question,
-        })
-
-        return {
-            "question": question,
-            "answer": answer.strip(),
-            "citations": citations,
-            "source_documents": retrieved_docs,
-        }

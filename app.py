@@ -21,6 +21,13 @@ from src.vectorstore import (
     list_indexed_documents,
 )
 from src.rag_chain import RAGPipeline
+from src.error_logger import (
+    record_error,
+    get_recent_errors,
+    get_unacknowledged_count,
+    acknowledge_all_errors,
+    clear_all_errors,
+)
 
 st.set_page_config(
     page_title="AI Knowledge Assistant",
@@ -67,8 +74,6 @@ st.markdown("""
 @st.cache_resource(show_spinner=False)
 def load_rag_system():
     """Initializes and caches the RAG pipeline and vector store."""
-    if not config.are_cloud_credentials_ready() and config.is_cloud_environment():
-        return None, None
     try:
         embeddings = get_embeddings()
         vector_store = get_vector_store(config.CHROMA_PERSIST_DIR, embeddings)
@@ -79,36 +84,28 @@ def load_rag_system():
         )
         return pipeline, vector_store
     except Exception as e:
+        record_error(
+            service="System Initialization",
+            user_message="Failed initializing RAG pipeline or vector store",
+            exception=e,
+        )
         return None, None
 
 def main():
     st.title("⚡ AI Knowledge Assistant")
     st.caption("Cloud RAG Pipeline | Grounded Answers with Instant Streaming Citations")
 
-    # Cloud Credentials Status
-    google_ready = bool(config.GOOGLE_API_KEY)
-    pinecone_ready = bool(config.PINECONE_API_KEY)
-    all_ready = google_ready and pinecone_ready
+    # Check if this session is the Host Device
+    is_host = config.is_host_session()
 
-    if not all_ready:
-        st.warning("⚠️ **Cloud Configuration Notice**: To use this application on mobile or online, Gemini and Pinecone API keys are required.")
-        with st.expander("ℹ️ **How to configure your API keys (2 Easy Options)**", expanded=True):
-            st.markdown("""
-            **Option 1: Quick Start on Mobile (Sidebar)**
-            Open the sidebar (👈 arrow icon on top-left of mobile), expand **🔑 Cloud API Credentials**, paste your keys, and click **Save Credentials**.
-            
-            **Option 2: Permanent Deployment (Streamlit Secrets)**
-            To keep your keys permanently saved so you don't need to re-enter them:
-            1. Open [Streamlit Cloud Dashboard](https://share.streamlit.io).
-            2. Find your app, click **Settings (⋮)** > **Secrets**.
-            3. Paste the following configuration:
-            ```toml
-            GOOGLE_API_KEY = "your-gemini-key"
-            PINECONE_API_KEY = "your-pinecone-key"
-            PINECONE_INDEX_NAME = "pdf-rag"
-            ```
-            4. Click **Save**. The app will reload automatically!
-            """)
+    # Host Device Alert Banner: Only displayed on the host device!
+    if is_host:
+        unack = get_unacknowledged_count()
+        if unack > 0:
+            st.warning(
+                f"🚨 **Host System Alert**: {unack} service disconnection / error event(s) captured from user sessions. "
+                "Review the **Host Diagnostics & Error Logs** panel in the sidebar."
+            )
 
     pipeline, vector_store = load_rag_system()
 
@@ -122,45 +119,85 @@ def main():
             }
         ]
 
-    # Sidebar: Document Management & API Credentials
+    # Sidebar: Document Management & Host Administration
     with st.sidebar:
-        # API Credentials Section
-        with st.expander("🔑 Cloud API Credentials", expanded=not all_ready):
-            if all_ready:
-                st.success("🟢 Connected to Gemini Flash & Pinecone")
-            else:
-                st.info("Enter keys below to activate the cloud assistant:")
+        # =========================================================================
+        # 👑 HOST DEVICE ONLY: Administration, Diagnostics, and Credential Manager
+        # =========================================================================
+        if is_host:
+            st.markdown("### 👑 Host Administration Mode")
+            
+            with st.expander("🛠️ Host Diagnostics & Error Logs", expanded=get_unacknowledged_count() > 0):
+                st.markdown("**Cloud Connectivity Status:**")
+                st.write(f"- Google Gemini LLM: `🟢 Active ({config.LLM_MODEL})`")
+                st.write(f"- Pinecone Cloud DB: `🟢 Connected ({config.PINECONE_INDEX_NAME})`")
 
-            st_google_key = st.text_input(
-                "Google Gemini API Key",
-                value=config.GOOGLE_API_KEY,
-                type="password",
-                help="Your Gemini API key from Google AI Studio",
-            )
-            st_pinecone_key = st.text_input(
-                "Pinecone API Key",
-                value=config.PINECONE_API_KEY,
-                type="password",
-                help="Your Pinecone API key from pinecone.io",
-            )
-            st_index_name = st.text_input(
-                "Pinecone Index Name",
-                value=config.PINECONE_INDEX_NAME,
-                help="Default is 'pdf-rag'",
-            )
+                if st.button("🔄 Test Live Cloud Connections", use_container_width=True):
+                    with st.spinner("Pinging Pinecone serverless index..."):
+                        try:
+                            from src.vectorstore import get_pinecone_index
+                            idx = get_pinecone_index()
+                            stats = idx.describe_index_stats()
+                            total_v = stats.get('total_vector_count', 0)
+                            st.success(f"✅ Pinecone OK! Live Vector Count: {total_v}")
+                        except Exception as e:
+                            st.error(f"❌ Pinecone Disconnection: {e}")
+                            record_error("Pinecone", "Host test connection failed", exception=e)
 
-            if st.button("💾 Save Credentials", use_container_width=True):
-                if st_google_key and st_pinecone_key:
-                    config.set_runtime_credentials(st_google_key, st_pinecone_key, st_index_name)
-                    st.cache_resource.clear()
-                    st.toast("Credentials saved successfully!", icon="✅")
-                    st.rerun()
+                st.divider()
+                # Display system error logs
+                errors = get_recent_errors(limit=8)
+                st.markdown(f"**Recorded System Errors ({len(errors)}):**")
+                if errors:
+                    for err in errors:
+                        st.markdown(f"**[{err['timestamp']}] ⚠️ {err['service']}**: {err['message']}")
+                        if err.get("technical_details"):
+                            with st.expander(f"View Traceback (Error #{err['id']})"):
+                                st.code(err["technical_details"], language="text")
+                    
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        if st.button("Acknowledge All", use_container_width=True):
+                            acknowledge_all_errors()
+                            st.rerun()
+                    with c2:
+                        if st.button("Clear Log", use_container_width=True):
+                            clear_all_errors()
+                            st.rerun()
                 else:
-                    st.error("Please provide both Gemini and Pinecone API keys.")
+                    st.info("No system errors recorded. All systems operating normally!")
 
-        st.divider()
+            with st.expander("🔑 Cloud API Credentials", expanded=False):
+                st.caption("Host-only API key configuration:")
+                st_google_key = st.text_input(
+                    "Google Gemini API Key",
+                    value=config.GOOGLE_API_KEY,
+                    type="password",
+                )
+                st_pinecone_key = st.text_input(
+                    "Pinecone API Key",
+                    value=config.PINECONE_API_KEY,
+                    type="password",
+                )
+                st_index_name = st.text_input(
+                    "Pinecone Index Name",
+                    value=config.PINECONE_INDEX_NAME,
+                )
+
+                if st.button("💾 Save Credentials", use_container_width=True):
+                    if st_google_key and st_pinecone_key:
+                        config.set_runtime_credentials(st_google_key, st_pinecone_key, st_index_name)
+                        st.cache_resource.clear()
+                        st.toast("Credentials updated successfully!", icon="✅")
+                        st.rerun()
+
+            st.divider()
+
+        # =========================================================================
+        # 📄 DOCUMENT MANAGEMENT SECTION (Clean & simple for all users)
+        # =========================================================================
         st.header("📄 Document Ingestion")
-        st.caption("Upload PDF documents to expand your knowledge base.")
+        st.caption("Upload PDF documents to expand your cloud knowledge base.")
 
         uploaded_files = st.file_uploader(
             "Select PDF files",
@@ -176,39 +213,43 @@ def main():
             process_btn = st.button("📥 Ingest", type="primary", use_container_width=True)
 
         if process_btn:
-            if not config.GOOGLE_API_KEY:
-                st.error("❌ Google Gemini API Key is missing. Please provide it in the sidebar or Streamlit Secrets.")
-                st.stop()
-            if not config.PINECONE_API_KEY:
-                st.error("❌ Pinecone API Key is missing. Please provide it in the sidebar or Streamlit Secrets.")
-                st.stop()
+            try:
+                config.DOCS_DIR.mkdir(parents=True, exist_ok=True)
+                if uploaded_files:
+                    with st.spinner("Saving uploaded files..."):
+                        for uploaded_file in uploaded_files:
+                            save_path = config.DOCS_DIR / uploaded_file.name
+                            with open(save_path, "wb") as f:
+                                f.write(uploaded_file.getbuffer())
+                        st.success(f"Saved {len(uploaded_files)} file(s)!")
 
-            config.DOCS_DIR.mkdir(parents=True, exist_ok=True)
-            if uploaded_files:
-                with st.spinner("Saving uploaded files..."):
-                    for uploaded_file in uploaded_files:
-                        save_path = config.DOCS_DIR / uploaded_file.name
-                        with open(save_path, "wb") as f:
-                            f.write(uploaded_file.getbuffer())
-                    st.success(f"Saved {len(uploaded_files)} file(s)!")
-
-            with st.spinner("Indexing documents into database..."):
-                docs = load_documents_from_directory(config.DOCS_DIR)
-                if not docs:
-                    st.warning("No PDF documents found in data/docs to index.")
+                with st.spinner("Indexing documents into cloud database..."):
+                    docs = load_documents_from_directory(config.DOCS_DIR)
+                    if not docs:
+                        st.warning("No PDF documents found to index. Please upload a file first.")
+                    else:
+                        st.cache_resource.clear()
+                        chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
+                        embeddings = get_embeddings()
+                        index_documents(
+                            documents=chunks,
+                            persist_directory=config.CHROMA_PERSIST_DIR,
+                            embeddings=embeddings,
+                            recreate=recreate_db,
+                        )
+                        st.cache_resource.clear()
+                        st.success(f"Successfully indexed {len(docs)} page(s) into {len(chunks)} chunks!")
+                        st.rerun()
+            except Exception as e:
+                record_error(
+                    service="Document Ingestion",
+                    user_message="Document upload or indexing failed",
+                    exception=e,
+                )
+                if is_host:
+                    st.error(f"Host Diagnostic Error: {e}")
                 else:
-                    st.cache_resource.clear()
-                    chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
-                    embeddings = get_embeddings()
-                    index_documents(
-                        documents=chunks,
-                        persist_directory=config.CHROMA_PERSIST_DIR,
-                        embeddings=embeddings,
-                        recreate=recreate_db,
-                    )
-                    st.cache_resource.clear()
-                    st.success(f"Successfully indexed {len(docs)} page(s) into {len(chunks)} chunks!")
-                    st.rerun()
+                    st.error("⚠️ Document processing is temporarily unavailable. Please try again shortly.")
 
         st.divider()
         st.header("📁 Ingested Documents")
@@ -227,11 +268,22 @@ def main():
                         st.markdown(f"📄 **`{doc_name}`**\n\n*{chunks_count} chunk(s)*")
                     with c2:
                         if st.button("🗑️", key=f"del_{doc_name}", help=f"Remove '{doc_name}' from database"):
-                            with st.spinner(f"Removing '{doc_name}'..."):
-                                delete_document_by_name(vector_store, doc_name, config.DOCS_DIR)
-                                st.cache_resource.clear()
-                            st.toast(f"Removed '{doc_name}'!", icon="🗑️")
-                            st.rerun()
+                            try:
+                                with st.spinner(f"Removing '{doc_name}'..."):
+                                    delete_document_by_name(vector_store, doc_name, config.DOCS_DIR)
+                                    st.cache_resource.clear()
+                                st.toast(f"Removed '{doc_name}'!", icon="🗑️")
+                                st.rerun()
+                            except Exception as del_err:
+                                record_error(
+                                    service="Document Deletion",
+                                    user_message=f"Failed removing '{doc_name}'",
+                                    exception=del_err,
+                                )
+                                if is_host:
+                                    st.error(f"Host Diagnostic Error: {del_err}")
+                                else:
+                                    st.error("⚠️ Unable to remove file at this moment. Please try again.")
                     st.markdown("<hr style='margin: 4px 0 10px 0; border: none; border-top: 1px solid rgba(255,255,255,0.06);'/>", unsafe_allow_html=True)
         else:
             st.info("No documents currently in your knowledge base. Upload a PDF above to get started.")
@@ -246,6 +298,26 @@ def main():
                 }
             ]
             st.rerun()
+
+        # Host Access for Remote Admin Login
+        if not is_host:
+            st.divider()
+            with st.expander("🔒 Host Access", expanded=False):
+                st.caption("Enter Admin PIN to unlock Host Administration Mode on this device.")
+                entered_pin = st.text_input("Admin PIN", type="password", key="admin_pin_input")
+                if st.button("Unlock Host Mode", key="btn_unlock_host", use_container_width=True):
+                    if entered_pin == config.HOST_ADMIN_PIN:
+                        st.session_state.is_host_authenticated = True
+                        st.toast("Host Mode Unlocked!", icon="👑")
+                        st.rerun()
+                    else:
+                        st.error("Incorrect Admin PIN.")
+        else:
+            if st.session_state.get("is_host_authenticated"):
+                st.divider()
+                if st.button("🔒 Exit Host Mode", key="btn_lock_host", use_container_width=True):
+                    st.session_state.is_host_authenticated = False
+                    st.rerun()
 
     # Main Chat Area
     for msg in st.session_state.messages:
@@ -272,55 +344,87 @@ def main():
         # Assistant generation with token streaming for ultra-fast response
         with st.chat_message("assistant"):
             if not config.GOOGLE_API_KEY:
-                err_msg = "Google Gemini API Key is missing. Please enter your API key in the sidebar or Streamlit Cloud Secrets."
-                st.error(err_msg)
+                record_error(
+                    service="Google Gemini AI",
+                    user_message="Gemini API Key is missing during chat interaction",
+                )
+                if is_host:
+                    err_msg = "⚠️ Google Gemini API Key is missing. Please enter your API key in the Host Administration section or Streamlit Cloud Secrets."
+                    st.error(err_msg)
+                else:
+                    err_msg = "⚠️ The AI assistant service is temporarily unavailable. Please try again shortly."
+                    st.info(err_msg)
                 st.session_state.messages.append({"role": "assistant", "content": err_msg, "citations": []})
             elif pipeline is None:
-                err_msg = "Could not connect to AI service or vector database. Please check your credentials in the sidebar or Streamlit Secrets."
-                st.error(err_msg)
+                record_error(
+                    service="RAG System",
+                    user_message="Pipeline is uninitialized (connection or config failure)",
+                )
+                if is_host:
+                    err_msg = "⚠️ Could not connect to AI service or vector database. Review Host Diagnostics in the sidebar."
+                    st.error(err_msg)
+                else:
+                    err_msg = "⚠️ We encountered a temporary connection issue. Please try again shortly."
+                    st.info(err_msg)
                 st.session_state.messages.append({"role": "assistant", "content": err_msg, "citations": []})
             else:
-                with st.spinner("Searching knowledge base..."):
-                    context_str, citations, _ = pipeline.retrieve(user_query)
+                try:
+                    with st.spinner("Searching knowledge base..."):
+                        context_str, citations, _ = pipeline.retrieve(user_query)
 
-                if not context_str:
-                    indexed_docs = list_indexed_documents(vector_store)
-                    if indexed_docs:
-                        doc_list_str = ", ".join([f"`{d['filename']}`" for d in indexed_docs if d.get('chunks', 0) > 0] or [f"`{d['filename']}`" for d in indexed_docs])
-                        fallback_text = (
-                            f"I couldn't find specific sections for that query, but I have access to these documents in your cloud knowledge base: {doc_list_str}.\n\n"
-                            "Try asking:\n"
-                            "- *'Summarize the document'*\n"
-                            "- *'What are the key points?'*\n"
-                            "- Or ask about specific topics inside them!"
-                        )
+                    if not context_str:
+                        indexed_docs = list_indexed_documents(vector_store)
+                        if indexed_docs:
+                            doc_list_str = ", ".join([f"`{d['filename']}`" for d in indexed_docs if d.get('chunks', 0) > 0] or [f"`{d['filename']}`" for d in indexed_docs])
+                            fallback_text = (
+                                f"I couldn't find specific sections for that query, but I have access to these documents in your cloud knowledge base: {doc_list_str}.\n\n"
+                                "Try asking:\n"
+                                "- *'Summarize the document'*\n"
+                                "- *'What are the key points?'*\n"
+                                "- Or ask about specific topics inside them!"
+                            )
+                        else:
+                            fallback_text = "No document chunks found in your database. Please upload and ingest a PDF in the sidebar to start asking questions."
+                        st.markdown(fallback_text)
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": fallback_text,
+                            "citations": []
+                        })
                     else:
-                        fallback_text = "No document chunks found in your database. Please upload and ingest a PDF in the sidebar to start asking questions."
-                    st.markdown(fallback_text)
+                        # Stream tokens in real-time
+                        full_answer = st.write_stream(pipeline.stream_response(context_str, user_query))
+
+                        if citations:
+                            with st.expander(f"📌 View {len(citations)} Source Citations", expanded=False):
+                                for i, cite in enumerate(citations, 1):
+                                    st.markdown(f"""
+                                    <div class="citation-card">
+                                        <span class="badge">Citation #{i}</span><br>
+                                        <strong>File:</strong> <code>{cite['filename']}</code> | <strong>Page:</strong> {cite['page']}<br>
+                                        <em>"{cite['snippet']}"</em>
+                                    </div>
+                                    """, unsafe_allow_html=True)
+
+                        st.session_state.messages.append({
+                            "role": "assistant",
+                            "content": full_answer,
+                            "citations": citations
+                        })
+                except Exception as query_err:
+                    record_error(
+                        service="Query & Retrieval",
+                        user_message=f"Query failed: {user_query[:60]}",
+                        exception=query_err,
+                    )
+                    if is_host:
+                        st.error(f"Host Diagnostic Error: {query_err}")
+                    else:
+                        st.info("⚠️ We encountered a temporary connection issue. Please try again shortly.")
                     st.session_state.messages.append({
                         "role": "assistant",
-                        "content": fallback_text,
+                        "content": "⚠️ We encountered a temporary connection issue. Please try again shortly.",
                         "citations": []
-                    })
-                else:
-                    # Stream tokens in real-time
-                    full_answer = st.write_stream(pipeline.stream_response(context_str, user_query))
-
-                    if citations:
-                        with st.expander(f"📌 View {len(citations)} Source Citations", expanded=False):
-                            for i, cite in enumerate(citations, 1):
-                                st.markdown(f"""
-                                <div class="citation-card">
-                                    <span class="badge">Citation #{i}</span><br>
-                                    <strong>File:</strong> <code>{cite['filename']}</code> | <strong>Page:</strong> {cite['page']}<br>
-                                    <em>"{cite['snippet']}"</em>
-                                </div>
-                                """, unsafe_allow_html=True)
-
-                    st.session_state.messages.append({
-                        "role": "assistant",
-                        "content": full_answer,
-                        "citations": citations
                     })
 
 if __name__ == "__main__":

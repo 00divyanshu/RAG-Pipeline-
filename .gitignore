@@ -28,3 +28,4 @@ Thumbs.db
 # User uploaded documents (keep sample_policy.pdf)
 data/docs/*
 !data/docs/sample_policy.pdf
+data/host_errors.json
