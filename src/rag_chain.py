@@ -1,10 +1,9 @@
 import logging
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional, Tuple, Iterator
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.documents import Document
 from langchain_core.output_parsers import StrOutputParser
-from langchain_core.runnables import RunnablePassthrough
-from langchain_ollama import ChatOllama
+from src import config
 
 logger = logging.getLogger(__name__)
 
@@ -52,13 +51,37 @@ def get_citations(docs: List[Document]) -> List[Dict[str, Any]]:
     return citations
 
 class RAGPipeline:
-    def __init__(self, retriever, llm_model: str, base_url: str, temperature: float = 0.2):
+    def __init__(
+        self,
+        retriever,
+        llm_model: Optional[str] = None,
+        base_url: Optional[str] = None,
+        provider: Optional[str] = None,
+        temperature: float = 0.2,
+    ):
         self.retriever = retriever
-        self.llm = ChatOllama(
-            model=llm_model,
-            base_url=base_url,
-            temperature=temperature,
-        )
+        active_provider = (provider or config.LLM_PROVIDER).lower()
+
+        if active_provider == "gemini" or config.GOOGLE_API_KEY:
+            from langchain_google_genai import ChatGoogleGenerativeAI
+            model = llm_model or config.GEMINI_LLM_MODEL
+            logger.info(f"Using Google Gemini Flash LLM: {model}")
+            self.llm = ChatGoogleGenerativeAI(
+                model=model,
+                google_api_key=config.GOOGLE_API_KEY,
+                temperature=temperature,
+            )
+        else:
+            from langchain_ollama import ChatOllama
+            model = llm_model or config.OLLAMA_LLM_MODEL
+            url = base_url or config.OLLAMA_BASE_URL
+            logger.info(f"Using Ollama LLM: {model} at {url}")
+            self.llm = ChatOllama(
+                model=model,
+                base_url=url,
+                temperature=temperature,
+            )
+
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", SYSTEM_PROMPT),
             ("human", "{question}"),
@@ -73,16 +96,32 @@ class RAGPipeline:
             | self.output_parser
         )
 
-    def ask(self, question: str) -> Dict[str, Any]:
+    def retrieve(self, question: str) -> Tuple[str, List[Dict[str, Any]], List[Document]]:
         """
-        Executes end-to-end RAG:
-        1. Retrieves relevant chunks from vector store.
-        2. Formats chunks with metadata.
-        3. Generates response using LLM.
-        4. Returns answer along with structured citations.
+        Retrieves relevant document chunks and extracts citations.
+        Returns (context_string, citations, raw_docs).
         """
         retrieved_docs = self.retriever.invoke(question)
         if not retrieved_docs:
+            return "", [], []
+        return format_docs(retrieved_docs), get_citations(retrieved_docs), retrieved_docs
+
+    def stream_response(self, context_str: str, question: str) -> Iterator[str]:
+        """
+        Yields tokens in real-time for fast streaming in Streamlit.
+        """
+        for chunk in self.generation_chain.stream({
+            "context": context_str,
+            "question": question,
+        }):
+            yield chunk
+
+    def ask(self, question: str) -> Dict[str, Any]:
+        """
+        Synchronous end-to-end RAG execution for CLI / non-streaming queries.
+        """
+        context_str, citations, retrieved_docs = self.retrieve(question)
+        if not context_str:
             return {
                 "question": question,
                 "answer": "No relevant documents or information found in the vector database.",
@@ -90,12 +129,10 @@ class RAGPipeline:
                 "source_documents": [],
             }
 
-        context_str = format_docs(retrieved_docs)
         answer = self.generation_chain.invoke({
             "context": context_str,
             "question": question,
         })
-        citations = get_citations(retrieved_docs)
 
         return {
             "question": question,
@@ -103,4 +140,3 @@ class RAGPipeline:
             "citations": citations,
             "source_documents": retrieved_docs,
         }
-

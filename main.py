@@ -39,7 +39,7 @@ def ingest_cmd(args):
         return
 
     chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
-    embeddings = get_embeddings(config.EMBEDDING_MODEL, config.OLLAMA_BASE_URL)
+    embeddings = get_embeddings()
 
     index_documents(
         documents=chunks,
@@ -52,13 +52,12 @@ def ingest_cmd(args):
 
 def get_pipeline():
     """Builds and returns the RAG pipeline."""
-    embeddings = get_embeddings(config.EMBEDDING_MODEL, config.OLLAMA_BASE_URL)
+    embeddings = get_embeddings()
     vector_store = get_vector_store(config.CHROMA_PERSIST_DIR, embeddings)
     retriever = get_retriever(vector_store, search_type="similarity", k=config.RETRIEVER_K)
     return RAGPipeline(
         retriever=retriever,
         llm_model=config.LLM_MODEL,
-        base_url=config.OLLAMA_BASE_URL,
     )
 
 def print_result(result: dict):
