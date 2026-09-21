@@ -1,0 +1,26 @@
+# Virtual Environment
+.venv/
+env/
+venv/
+ENV/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Vector Database (Local persistent storage)
+chroma_db/
+
+# Environment Variables & Secrets
+.env
+
+# Continue Editor Agent files
+.continue/
+
+# IDE & OS files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
