@@ -61,16 +61,27 @@ class RAGPipeline:
     ):
         self.retriever = retriever
         active_provider = (provider or config.LLM_PROVIDER).lower()
+        google_key = config.GOOGLE_API_KEY
 
-        if active_provider == "gemini" or config.GOOGLE_API_KEY:
+        if active_provider == "gemini" or google_key:
+            if not google_key:
+                raise ValueError(
+                    "Google Gemini API Key is missing! "
+                    "Please configure GOOGLE_API_KEY in your Streamlit Cloud Secrets or via the sidebar."
+                )
             from langchain_google_genai import ChatGoogleGenerativeAI
             model = llm_model or config.GEMINI_LLM_MODEL
             logger.info(f"Using Google Gemini Flash LLM: {model}")
             self.llm = ChatGoogleGenerativeAI(
                 model=model,
-                google_api_key=config.GOOGLE_API_KEY,
+                google_api_key=google_key,
             )
         else:
+            if config.is_cloud_environment():
+                raise ValueError(
+                    "Running in the cloud (Streamlit Community Cloud), but GOOGLE_API_KEY is not configured! "
+                    "Local Ollama is not available in cloud environments. Please enter your Google API Key in the sidebar or Streamlit Secrets."
+                )
             from langchain_ollama import ChatOllama
             model = llm_model or config.OLLAMA_LLM_MODEL
             url = base_url or config.OLLAMA_BASE_URL

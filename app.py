@@ -67,6 +67,8 @@ st.markdown("""
 @st.cache_resource(show_spinner=False)
 def load_rag_system():
     """Initializes and caches the RAG pipeline and vector store."""
+    if not config.are_cloud_credentials_ready() and config.is_cloud_environment():
+        return None, None
     try:
         embeddings = get_embeddings()
         vector_store = get_vector_store(config.CHROMA_PERSIST_DIR, embeddings)
@@ -77,12 +79,36 @@ def load_rag_system():
         )
         return pipeline, vector_store
     except Exception as e:
-        st.error(f"Initialization notice: {str(e)}")
         return None, None
 
 def main():
     st.title("⚡ AI Knowledge Assistant")
     st.caption("Cloud RAG Pipeline | Grounded Answers with Instant Streaming Citations")
+
+    # Cloud Credentials Status
+    google_ready = bool(config.GOOGLE_API_KEY)
+    pinecone_ready = bool(config.PINECONE_API_KEY)
+    all_ready = google_ready and pinecone_ready
+
+    if not all_ready:
+        st.warning("⚠️ **Cloud Configuration Notice**: To use this application on mobile or online, Gemini and Pinecone API keys are required.")
+        with st.expander("ℹ️ **How to configure your API keys (2 Easy Options)**", expanded=True):
+            st.markdown("""
+            **Option 1: Quick Start on Mobile (Sidebar)**
+            Open the sidebar (👈 arrow icon on top-left of mobile), expand **🔑 Cloud API Credentials**, paste your keys, and click **Save Credentials**.
+            
+            **Option 2: Permanent Deployment (Streamlit Secrets)**
+            To keep your keys permanently saved so you don't need to re-enter them:
+            1. Open [Streamlit Cloud Dashboard](https://share.streamlit.io).
+            2. Find your app, click **Settings (⋮)** > **Secrets**.
+            3. Paste the following configuration:
+            ```toml
+            GOOGLE_API_KEY = "your-gemini-key"
+            PINECONE_API_KEY = "your-pinecone-key"
+            PINECONE_INDEX_NAME = "pdf-rag"
+            ```
+            4. Click **Save**. The app will reload automatically!
+            """)
 
     pipeline, vector_store = load_rag_system()
 
@@ -96,8 +122,43 @@ def main():
             }
         ]
 
-    # Sidebar: Document Management (System configuration is locked and hidden)
+    # Sidebar: Document Management & API Credentials
     with st.sidebar:
+        # API Credentials Section
+        with st.expander("🔑 Cloud API Credentials", expanded=not all_ready):
+            if all_ready:
+                st.success("🟢 Connected to Gemini Flash & Pinecone")
+            else:
+                st.info("Enter keys below to activate the cloud assistant:")
+
+            st_google_key = st.text_input(
+                "Google Gemini API Key",
+                value=config.GOOGLE_API_KEY,
+                type="password",
+                help="Your Gemini API key from Google AI Studio",
+            )
+            st_pinecone_key = st.text_input(
+                "Pinecone API Key",
+                value=config.PINECONE_API_KEY,
+                type="password",
+                help="Your Pinecone API key from pinecone.io",
+            )
+            st_index_name = st.text_input(
+                "Pinecone Index Name",
+                value=config.PINECONE_INDEX_NAME,
+                help="Default is 'pdf-rag'",
+            )
+
+            if st.button("💾 Save Credentials", use_container_width=True):
+                if st_google_key and st_pinecone_key:
+                    config.set_runtime_credentials(st_google_key, st_pinecone_key, st_index_name)
+                    st.cache_resource.clear()
+                    st.toast("Credentials saved successfully!", icon="✅")
+                    st.rerun()
+                else:
+                    st.error("Please provide both Gemini and Pinecone API keys.")
+
+        st.divider()
         st.header("📄 Document Ingestion")
         st.caption("Upload PDF documents to expand your knowledge base.")
 
@@ -115,6 +176,13 @@ def main():
             process_btn = st.button("📥 Ingest", type="primary", use_container_width=True)
 
         if process_btn:
+            if not config.GOOGLE_API_KEY:
+                st.error("❌ Google Gemini API Key is missing. Please provide it in the sidebar or Streamlit Secrets.")
+                st.stop()
+            if not config.PINECONE_API_KEY:
+                st.error("❌ Pinecone API Key is missing. Please provide it in the sidebar or Streamlit Secrets.")
+                st.stop()
+
             config.DOCS_DIR.mkdir(parents=True, exist_ok=True)
             if uploaded_files:
                 with st.spinner("Saving uploaded files..."):
@@ -203,8 +271,12 @@ def main():
 
         # Assistant generation with token streaming for ultra-fast response
         with st.chat_message("assistant"):
-            if pipeline is None:
-                err_msg = "Could not connect to AI service or vector database. Please check your credentials."
+            if not config.GOOGLE_API_KEY:
+                err_msg = "Google Gemini API Key is missing. Please enter your API key in the sidebar or Streamlit Cloud Secrets."
+                st.error(err_msg)
+                st.session_state.messages.append({"role": "assistant", "content": err_msg, "citations": []})
+            elif pipeline is None:
+                err_msg = "Could not connect to AI service or vector database. Please check your credentials in the sidebar or Streamlit Secrets."
                 st.error(err_msg)
                 st.session_state.messages.append({"role": "assistant", "content": err_msg, "citations": []})
             else:

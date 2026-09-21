@@ -23,13 +23,24 @@ def get_embeddings(
     otherwise falls back to OllamaEmbeddings.
     """
     active_provider = (provider or config.EMBEDDING_PROVIDER).lower()
+    google_key = config.GOOGLE_API_KEY
     
-    if active_provider == "gemini" or config.GOOGLE_API_KEY:
+    if active_provider == "gemini" or google_key:
+        if not google_key:
+            raise ValueError(
+                "Google Gemini API Key is missing! "
+                "Please configure GOOGLE_API_KEY in your Streamlit Cloud Secrets or via the sidebar."
+            )
         from langchain_google_genai import GoogleGenerativeAIEmbeddings
         model = model_name or config.GEMINI_EMBEDDING_MODEL
         logger.info(f"Using Google Gemini embeddings: {model}")
-        return GoogleGenerativeAIEmbeddings(model=model, google_api_key=config.GOOGLE_API_KEY)
+        return GoogleGenerativeAIEmbeddings(model=model, google_api_key=google_key)
     else:
+        if config.is_cloud_environment():
+            raise ValueError(
+                "Running in the cloud (Streamlit Community Cloud), but GOOGLE_API_KEY is not configured! "
+                "Local Ollama is not available in cloud environments. Please enter your Google API Key in the sidebar or Streamlit Secrets."
+            )
         from langchain_ollama import OllamaEmbeddings
         model = model_name or config.OLLAMA_EMBEDDING_MODEL
         url = base_url or config.OLLAMA_BASE_URL
@@ -40,7 +51,13 @@ def get_pinecone_index():
     """Initializes and returns a Pinecone serverless Index object."""
     from pinecone import Pinecone, ServerlessSpec
     
-    pc = Pinecone(api_key=config.PINECONE_API_KEY)
+    api_key = config.PINECONE_API_KEY
+    if not api_key:
+        raise ValueError(
+            "Pinecone API Key is missing! "
+            "Please configure PINECONE_API_KEY in your Streamlit Cloud Secrets or via the sidebar."
+        )
+    pc = Pinecone(api_key=api_key)
     index_name = config.PINECONE_INDEX_NAME
     
     existing_indexes = [idx.name for idx in pc.list_indexes()]
@@ -67,7 +84,13 @@ def get_vector_store(
     if embeddings is None:
         embeddings = get_embeddings()
 
-    if config.VECTOR_DB_PROVIDER == "pinecone" and config.PINECONE_API_KEY:
+    use_pinecone = (config.VECTOR_DB_PROVIDER == "pinecone" or config.is_cloud_environment())
+    if use_pinecone:
+        if not config.PINECONE_API_KEY:
+            raise ValueError(
+                "Pinecone API Key is missing! "
+                "Please configure PINECONE_API_KEY in your Streamlit Cloud Secrets or via the sidebar."
+            )
         from langchain_pinecone import PineconeVectorStore
         index = get_pinecone_index()
         logger.info(f"Connected to cloud Pinecone index '{config.PINECONE_INDEX_NAME}'.")
@@ -95,7 +118,13 @@ def index_documents(
     if embeddings is None:
         embeddings = get_embeddings()
 
-    if config.VECTOR_DB_PROVIDER == "pinecone" and config.PINECONE_API_KEY:
+    use_pinecone = (config.VECTOR_DB_PROVIDER == "pinecone" or config.is_cloud_environment())
+    if use_pinecone:
+        if not config.PINECONE_API_KEY:
+            raise ValueError(
+                "Pinecone API Key is missing! "
+                "Please configure PINECONE_API_KEY in your Streamlit Cloud Secrets or via the sidebar."
+            )
         from langchain_pinecone import PineconeVectorStore
         index = get_pinecone_index()
         if recreate:
