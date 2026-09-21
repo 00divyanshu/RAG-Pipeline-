@@ -1,4 +1,13 @@
+# Linux / Streamlit Community Cloud compatibility for ChromaDB SQLite
+try:
+    __import__("pysqlite3")
+    import sys
+    sys.modules["sqlite3"] = sys.modules.pop("pysqlite3")
+except ImportError:
+    pass
+
 import os
+import requests
 import streamlit as st
 from pathlib import Path
 from src import config
@@ -50,17 +59,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+def is_ollama_reachable(base_url: str) -> bool:
+    """Checks if the configured Ollama instance is online and responding."""
+    try:
+        resp = requests.get(f"{base_url.rstrip('/')}/api/tags", timeout=2)
+        return resp.status_code == 200
+    except Exception:
+        return False
+
 @st.cache_resource(show_spinner=False)
-def load_rag_pipeline():
+def load_rag_pipeline(base_url: str, llm_model: str, embedding_model: str, retriever_k: int):
     """Initializes and caches the RAG pipeline."""
     try:
-        embeddings = get_embeddings(config.EMBEDDING_MODEL, config.OLLAMA_BASE_URL)
+        embeddings = get_embeddings(embedding_model, base_url)
         vector_store = get_vector_store(config.CHROMA_PERSIST_DIR, embeddings)
-        retriever = get_retriever(vector_store, search_type="similarity", k=config.RETRIEVER_K)
+        retriever = get_retriever(vector_store, search_type="similarity", k=retriever_k)
         return RAGPipeline(
             retriever=retriever,
-            llm_model=config.LLM_MODEL,
-            base_url=config.OLLAMA_BASE_URL,
+            llm_model=llm_model,
+            base_url=base_url,
         )
     except Exception as e:
         return None
@@ -82,9 +99,27 @@ def main():
     # Sidebar: Document Management & Settings
     with st.sidebar:
         st.header("⚙️ Configuration")
-        st.info(f"**LLM:** `{config.LLM_MODEL}`\n\n"
-                f"**Embeddings:** `{config.EMBEDDING_MODEL}`\n\n"
-                f"**Retriever Top-K:** `{config.RETRIEVER_K}`")
+
+        with st.expander("🌐 Server & Model Settings", expanded=False):
+            ollama_url = st.text_input(
+                "Ollama Base URL",
+                value=config.OLLAMA_BASE_URL,
+                help="Local: http://localhost:11434 | Remote/Cloud: ngrok or Cloudflare tunnel URL",
+            )
+            selected_llm = st.text_input("LLM Model", value=config.LLM_MODEL)
+            selected_embed = st.text_input("Embedding Model", value=config.EMBEDDING_MODEL)
+            selected_k = st.slider("Retriever Top-K", min_value=1, max_value=10, value=config.RETRIEVER_K)
+
+        # Ollama connection indicator
+        if is_ollama_reachable(ollama_url):
+            st.success(f"🟢 Ollama Online (`{ollama_url}`)")
+        else:
+            st.warning(f"⚠️ Ollama Unreachable at `{ollama_url}`")
+            st.caption(
+                "💡 **Streamlit Cloud Note:** Ollama runs on your local machine. "
+                "To connect from Streamlit Cloud, expose your local Ollama with `ngrok http 11434` or Cloudflare Tunnel, "
+                "and set the public URL in Streamlit Secrets or in the box above."
+            )
 
         st.divider()
         st.header("📄 Upload & Index PDFs")
@@ -117,7 +152,7 @@ def main():
                     st.warning("No PDF documents found in data/docs to index.")
                 else:
                     chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
-                    embeddings = get_embeddings(config.EMBEDDING_MODEL, config.OLLAMA_BASE_URL)
+                    embeddings = get_embeddings(selected_embed, ollama_url)
                     index_documents(
                         documents=chunks,
                         persist_directory=config.CHROMA_PERSIST_DIR,
@@ -152,7 +187,7 @@ def main():
             st.rerun()
 
     # Main Chat Area
-    pipeline = load_rag_pipeline()
+    pipeline = load_rag_pipeline(ollama_url, selected_llm, selected_embed, selected_k)
 
     # Display chat messages
     for msg in st.session_state.messages:
