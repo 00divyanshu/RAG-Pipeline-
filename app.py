@@ -151,6 +151,7 @@ def main():
                 if not docs:
                     st.warning("No PDF documents found in data/docs to index.")
                 else:
+                    st.cache_resource.clear()
                     chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
                     embeddings = get_embeddings(selected_embed, ollama_url)
                     index_documents(

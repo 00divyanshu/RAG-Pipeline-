@@ -44,8 +44,21 @@ def index_documents(
     """
     persist_path = Path(persist_directory)
     if recreate and persist_path.exists():
-        logger.info(f"Recreating vector store at {persist_path}...")
-        shutil.rmtree(persist_path)
+        logger.info(f"Recreating vector store collection '{collection_name}' at {persist_path}...")
+        try:
+            existing_vs = Chroma(
+                collection_name=collection_name,
+                embedding_function=embeddings,
+                persist_directory=str(persist_path),
+            )
+            existing_vs.delete_collection()
+            logger.info("Previous collection deleted successfully via Chroma API.")
+        except Exception as e:
+            logger.warning(f"Could not delete collection via Chroma API: {e}. Attempting folder cleanup...")
+            try:
+                shutil.rmtree(persist_path, ignore_errors=True)
+            except Exception:
+                pass
 
     persist_path.mkdir(parents=True, exist_ok=True)
 

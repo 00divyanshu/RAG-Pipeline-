@@ -24,3 +24,7 @@ chroma_db/
 .DS_Store
 Thumbs.db
 *.log
+
+# User uploaded documents (keep sample_policy.pdf)
+data/docs/*
+!data/docs/sample_policy.pdf
