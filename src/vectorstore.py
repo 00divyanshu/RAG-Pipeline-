@@ -217,12 +217,21 @@ def list_indexed_documents(
     docs_dir: Optional[Path] = None,
 ) -> List[Dict[str, Any]]:
     """
-    Returns a summary list of all distinct ingested documents and their chunk counts.
+    Returns a summary list of all distinct ingested documents and their chunk counts
+    across Pinecone cloud or local Chroma.
     Example return: [{'filename': 'sample.pdf', 'chunks': 5}]
     """
     counts: Dict[str, int] = {}
     try:
-        if hasattr(vector_store, "get"):
+        class_name = type(vector_store).__name__
+        if class_name == "PineconeVectorStore" and hasattr(vector_store, "_index"):
+            # Pinecone serverless index query
+            res = vector_store._index.query(vector=[0.0] * 3072, top_k=10000, include_metadata=True)
+            for m in res.matches:
+                if m.metadata and "filename" in m.metadata:
+                    fn = m.metadata["filename"]
+                    counts[fn] = counts.get(fn, 0) + 1
+        elif hasattr(vector_store, "get"):
             # Chroma database
             data = vector_store.get()
             for meta in data.get("metadatas", []):
@@ -232,7 +241,7 @@ def list_indexed_documents(
     except Exception as e:
         logger.warning(f"Could not fetch document counts from vector store: {e}")
 
-    # Also check docs_dir if provided
+    # Also include any local files not yet counted
     if docs_dir and Path(docs_dir).exists():
         for f in Path(docs_dir).glob("*.pdf"):
             if f.name not in counts:
