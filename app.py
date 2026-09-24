@@ -69,7 +69,7 @@ from src.security import (
 # Page configuration
 st.set_page_config(
     page_title="AI Assistant",
-    page_icon="✨",
+    page_icon="🥑",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -91,305 +91,334 @@ if "current_session_id" not in st.session_state:
     st.session_state.current_session_id = None
 if "guest_messages" not in st.session_state:
     st.session_state.guest_messages = []
+if "show_uploader" not in st.session_state:
+    st.session_state.show_uploader = False
 
 def apply_app_theme(theme_choice: str):
     """
-    Applies dynamic Dark, Light, or Device/System CSS styling across all components.
-    Ensures complete text inversion (solid black in Light mode, crisp white in Dark mode)
-    and removes GitHub codebase exposure.
+    Applies dynamic Dark, Light, or Device/System CSS styling across all components
+    using native st.html to prevent raw markdown code block leakage.
+    Ensures text inversion (solid black in Light mode, crisp white in Dark mode)
+    and removes GitHub codebase exposure while preserving sidebar toggle controls.
     """
-    # 1. Privacy & GitHub codebase link elimination
-    privacy_css = """
-    <style>
-        /* Completely hide Streamlit Header, GitHub button, and Deploy menu */
-        header[data-testid="stHeader"] {
-            display: none !important;
-            visibility: hidden !important;
-            height: 0 !important;
-        }
-        div[data-testid="stToolbar"] {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        #MainMenu {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        footer {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        .stDeployButton {
-            display: none !important;
-            visibility: hidden !important;
-        }
-        a[href*="github.com"] {
-            display: none !important;
-            visibility: hidden !important;
-        }
-    </style>
-    """
-
-    # 2. Theme definitions
     if theme_choice == "light":
-        theme_css = """
-        <style>
-            :root {
-                --gemini-bg: radial-gradient(circle at 50% 30%, #eef4ff 0%, #f4f7fc 50%, #ffffff 100%);
-                --gemini-surface: #ffffff;
-                --gemini-sidebar: #f0f4f9;
-                --gemini-text-main: #1f1f1f;
-                --gemini-text-sub: #444746;
-                --gemini-border: #dfe3e7;
-                --gemini-pill: #e9eef6;
-                --gemini-accent: #0b57d0;
-            }
-            .stApp {
-                background: var(--gemini-bg) !important;
-                color: #1f1f1f !important;
-            }
-            .stApp * {
-                color: #1f1f1f !important;
-            }
-            section[data-testid="stSidebar"] {
-                background-color: #f0f4f9 !important;
-                border-right: 1px solid #dfe3e7 !important;
-            }
-            section[data-testid="stSidebar"] * {
-                color: #1f1f1f !important;
-            }
-            .stChatMessage {
-                background-color: #ffffff !important;
-                border: 1px solid #dfe3e7 !important;
-                border-radius: 18px;
-                color: #1f1f1f !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
-            }
-            .stChatMessage * {
-                color: #1f1f1f !important;
-            }
-            .citation-card {
-                background-color: #f1f5f9 !important;
-                border-left: 3px solid #0b57d0 !important;
-                color: #1e293b !important;
-                padding: 10px 14px;
-                margin-top: 8px;
-                border-radius: 8px;
-                font-size: 0.88em;
-            }
-            .citation-card * {
-                color: #1e293b !important;
-            }
-            .gemini-hero-title {
-                color: #1f1f1f !important;
-                font-weight: 500;
-                font-size: 2.3rem;
-                letter-spacing: -0.02em;
-                margin-top: 0.5rem;
-                margin-bottom: 0.4rem;
-            }
-            .gemini-hero-sub {
-                color: #444746 !important;
-                font-size: 1.05rem;
-            }
-            .gemini-suggestion-item {
-                background: #ffffff !important;
-                border: 1px solid #e0e4eb !important;
-                border-radius: 16px;
-                padding: 12px 18px;
-                margin-bottom: 8px;
-                color: #1f1f1f !important;
-                transition: background 0.15s ease, transform 0.15s ease;
-                box-shadow: 0 1px 2px rgba(0,0,0,0.04);
-            }
-            .gemini-suggestion-item * {
-                color: #1f1f1f !important;
-            }
-            .gemini-suggestion-item:hover {
-                background: #f1f5f9 !important;
-                transform: translateX(3px);
-            }
-            .sidebar-pill-active {
-                background: #dfe3e7 !important;
-                border-radius: 20px;
-                padding: 8px 16px;
-                font-weight: 600;
-                color: #1f1f1f !important;
-            }
-            .user-profile-card {
-                background: #ffffff;
-                border: 1px solid #dfe3e7;
-                border-radius: 24px;
-                padding: 8px 14px;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-            .user-profile-card * {
-                color: #1f1f1f !important;
-            }
-            div[data-baseweb="input"] input {
-                color: #1f1f1f !important;
-                background-color: #ffffff !important;
-            }
-        </style>
-        """
-    elif theme_choice == "dark":
-        theme_css = """
-        <style>
-            :root {
-                --gemini-bg: radial-gradient(circle at 50% 30%, #17243c 0%, #0d121c 55%, #07090e 100%);
-                --gemini-surface: #1e1f20;
-                --gemini-sidebar: #131314;
-                --gemini-text-main: #f0f4f9;
-                --gemini-text-sub: #c4c7c5;
-                --gemini-border: #37393b;
-                --gemini-pill: #282a2c;
-                --gemini-accent: #a8c7fa;
-            }
-            .stApp {
-                background: var(--gemini-bg) !important;
-                color: #f0f4f9 !important;
-            }
-            section[data-testid="stSidebar"] {
-                background-color: #131314 !important;
-                border-right: 1px solid #282a2c !important;
-            }
-            .stChatMessage {
-                background-color: #1e1f20 !important;
-                border: 1px solid #282a2c !important;
-                border-radius: 18px;
-                color: #f0f4f9 !important;
-                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
-            }
-            .citation-card {
-                background-color: rgba(255, 255, 255, 0.04) !important;
-                border-left: 3px solid #a8c7fa !important;
-                color: #e2e8f0 !important;
-                padding: 10px 14px;
-                margin-top: 8px;
-                border-radius: 8px;
-                font-size: 0.88em;
-            }
-            .gemini-hero-title {
-                color: #f0f4f9 !important;
-                font-weight: 500;
-                font-size: 2.3rem;
-                letter-spacing: -0.02em;
-                margin-top: 0.5rem;
-                margin-bottom: 0.4rem;
-            }
-            .gemini-hero-sub {
-                color: #c4c7c5 !important;
-                font-size: 1.05rem;
-            }
-            .gemini-suggestion-item {
-                background: rgba(255, 255, 255, 0.03) !important;
-                border: 1px solid rgba(255, 255, 255, 0.08) !important;
-                border-radius: 16px;
-                padding: 12px 18px;
-                margin-bottom: 8px;
-                color: #e3e3e3 !important;
-                transition: background 0.15s ease, transform 0.15s ease;
-            }
-            .gemini-suggestion-item:hover {
-                background: rgba(255, 255, 255, 0.07) !important;
-                transform: translateX(3px);
-            }
-            .sidebar-pill-active {
-                background: #282a2c !important;
-                border-radius: 20px;
-                padding: 8px 16px;
-                font-weight: 600;
-                color: #f0f4f9 !important;
-            }
-            .user-profile-card {
-                background: #1e1f20;
-                border: 1px solid #37393b;
-                border-radius: 24px;
-                padding: 8px 14px;
-                display: flex;
-                align-items: center;
-                gap: 10px;
-            }
-        </style>
-        """
-    else:
-        # Device / System theme (OS prefers-color-scheme)
-        theme_css = """
-        <style>
-            @media (prefers-color-scheme: light) {
-                .stApp { background: radial-gradient(circle at 50% 30%, #eef4ff 0%, #f4f7fc 50%, #ffffff 100%) !important; color: #1f1f1f !important; }
-                .stApp * { color: #1f1f1f !important; }
-                section[data-testid="stSidebar"] { background-color: #f0f4f9 !important; border-right: 1px solid #dfe3e7 !important; }
-                section[data-testid="stSidebar"] * { color: #1f1f1f !important; }
-                .stChatMessage { background-color: #ffffff !important; border: 1px solid #dfe3e7 !important; color: #1f1f1f !important; }
-                .stChatMessage * { color: #1f1f1f !important; }
-                .citation-card { background-color: #f1f5f9 !important; border-left: 3px solid #0b57d0 !important; color: #1e293b !important; }
-                .citation-card * { color: #1e293b !important; }
-                .gemini-hero-title { color: #1f1f1f !important; }
-                .gemini-hero-sub { color: #444746 !important; }
-                .gemini-suggestion-item { background: #ffffff !important; border: 1px solid #e0e4eb !important; color: #1f1f1f !important; }
-                .gemini-suggestion-item * { color: #1f1f1f !important; }
-            }
-            @media (prefers-color-scheme: dark) {
-                .stApp { background: radial-gradient(circle at 50% 30%, #17243c 0%, #0d121c 55%, #07090e 100%) !important; color: #f0f4f9 !important; }
-                section[data-testid="stSidebar"] { background-color: #131314 !important; border-right: 1px solid #282a2c !important; }
-                .stChatMessage { background-color: #1e1f20 !important; border: 1px solid #282a2c !important; color: #f0f4f9 !important; }
-                .citation-card { background-color: rgba(255, 255, 255, 0.04) !important; border-left: 3px solid #a8c7fa !important; color: #e2e8f0 !important; }
-                .gemini-hero-title { color: #f0f4f9 !important; }
-                .gemini-hero-sub { color: #c4c7c5 !important; }
-                .gemini-suggestion-item { background: rgba(255, 255, 255, 0.03) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: #e3e3e3 !important; }
-            }
-        </style>
-        """
+        css_payload = """
+<style>
+/* Privacy: Hide GitHub link, deploy button, and hamburger menu */
+div[data-testid="stToolbar"] { display: none !important; visibility: hidden !important; }
+#MainMenu { display: none !important; visibility: hidden !important; }
+footer { display: none !important; visibility: hidden !important; }
+.stDeployButton { display: none !important; visibility: hidden !important; }
+a[href*="github.com"] { display: none !important; visibility: hidden !important; }
+header[data-testid="stHeader"] { background: transparent !important; }
+div[data-testid="stSidebarCollapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    z-index: 999999 !important;
+    top: 12px !important;
+    left: 12px !important;
+}
 
-    base_elements = """
-    <style>
-        .badge {
-            display: inline-block;
-            padding: 3px 9px;
-            border-radius: 12px;
-            background: linear-gradient(135deg, #4E95FF, #9E7AFF);
-            color: white !important;
-            font-size: 0.75em;
-            font-weight: 600;
-            margin-bottom: 6px;
-        }
-        .admin-card {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 14px;
-            padding: 16px;
-            text-align: center;
-            margin-bottom: 10px;
-        }
-        .admin-stat {
-            font-size: 2.2em;
-            font-weight: 800;
-            color: #4E95FF;
-        }
-        .gemini-hero-container {
-            text-align: center;
-            margin: 3.5rem auto 2rem auto;
-            max-width: 680px;
-        }
-        .avatar-circle {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #4E95FF, #F576A4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.85em;
-            font-weight: 700;
-            color: white !important;
-            flex-shrink: 0;
-        }
-    </style>
-    """
-    st.markdown(privacy_css + theme_css + base_elements, unsafe_allow_html=True)
+/* Light Theme Variables */
+:root {
+    --app-bg: radial-gradient(circle at 50% 30%, #eef4ff 0%, #f4f7fc 50%, #ffffff 100%);
+    --app-surface: #ffffff;
+    --app-sidebar: #f0f4f9;
+    --app-text: #1f1f1f;
+    --app-text-muted: #444746;
+    --app-border: #dfe3e7;
+    --app-pill: #e9eef6;
+    --app-accent: #059669;
+}
+.stApp {
+    background: var(--app-bg) !important;
+    color: #1f1f1f !important;
+}
+.stApp * {
+    color: #1f1f1f !important;
+}
+section[data-testid="stSidebar"] {
+    background-color: #f0f4f9 !important;
+    border-right: 1px solid #dfe3e7 !important;
+}
+section[data-testid="stSidebar"] * {
+    color: #1f1f1f !important;
+}
+.stChatMessage {
+    background-color: #ffffff !important;
+    border: 1px solid #dfe3e7 !important;
+    border-radius: 18px;
+    color: #1f1f1f !important;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+.stChatMessage * {
+    color: #1f1f1f !important;
+}
+.citation-card {
+    background-color: #f1f5f9 !important;
+    border-left: 3px solid #059669 !important;
+    color: #1e293b !important;
+    padding: 10px 14px;
+    margin-top: 8px;
+    border-radius: 8px;
+    font-size: 0.88em;
+}
+.citation-card * {
+    color: #1e293b !important;
+}
+.hero-title {
+    color: #1f1f1f !important;
+    font-weight: 500;
+    font-size: 2.3rem;
+    letter-spacing: -0.02em;
+    margin-top: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+.hero-sub {
+    color: #444746 !important;
+    font-size: 1.05rem;
+}
+.suggestion-item {
+    background: #ffffff !important;
+    border: 1px solid #e0e4eb !important;
+    border-radius: 16px;
+    padding: 12px 18px;
+    margin-bottom: 8px;
+    color: #1f1f1f !important;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.suggestion-item * {
+    color: #1f1f1f !important;
+}
+.user-profile-card {
+    background: #ffffff;
+    border: 1px solid #dfe3e7;
+    border-radius: 24px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.user-profile-card * {
+    color: #1f1f1f !important;
+}
+div[data-baseweb="input"] input {
+    color: #1f1f1f !important;
+    background-color: #ffffff !important;
+}
+.badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: white !important;
+    font-size: 0.75em;
+    font-weight: 600;
+}
+.admin-card {
+    background: #ffffff;
+    border: 1px solid #dfe3e7;
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+.admin-stat {
+    font-size: 2.2em;
+    font-weight: 800;
+    color: #059669;
+}
+.avatar-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #059669, #10b981);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    font-weight: 700;
+    color: white !important;
+    flex-shrink: 0;
+}
+.hero-container {
+    text-align: center;
+    margin: 3.5rem auto 2rem auto;
+    max-width: 680px;
+}
+</style>
+"""
+    elif theme_choice == "dark":
+        css_payload = """
+<style>
+/* Privacy: Hide GitHub link, deploy button, and hamburger menu */
+div[data-testid="stToolbar"] { display: none !important; visibility: hidden !important; }
+#MainMenu { display: none !important; visibility: hidden !important; }
+footer { display: none !important; visibility: hidden !important; }
+.stDeployButton { display: none !important; visibility: hidden !important; }
+a[href*="github.com"] { display: none !important; visibility: hidden !important; }
+header[data-testid="stHeader"] { background: transparent !important; }
+div[data-testid="stSidebarCollapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    z-index: 999999 !important;
+    top: 12px !important;
+    left: 12px !important;
+}
+
+/* Dark Theme Variables */
+:root {
+    --app-bg: radial-gradient(circle at 50% 30%, #17243c 0%, #0d121c 55%, #07090e 100%);
+    --app-surface: #1e1f20;
+    --app-sidebar: #131314;
+    --app-text: #f0f4f9;
+    --app-text-muted: #c4c7c5;
+    --app-border: #37393b;
+    --app-pill: #282a2c;
+    --app-accent: #10b981;
+}
+.stApp {
+    background: var(--app-bg) !important;
+    color: #f0f4f9 !important;
+}
+section[data-testid="stSidebar"] {
+    background-color: #131314 !important;
+    border-right: 1px solid #282a2c !important;
+}
+.stChatMessage {
+    background-color: #1e1f20 !important;
+    border: 1px solid #282a2c !important;
+    border-radius: 18px;
+    color: #f0f4f9 !important;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+.citation-card {
+    background-color: rgba(255, 255, 255, 0.04) !important;
+    border-left: 3px solid #10b981 !important;
+    color: #e2e8f0 !important;
+    padding: 10px 14px;
+    margin-top: 8px;
+    border-radius: 8px;
+    font-size: 0.88em;
+}
+.hero-title {
+    color: #f0f4f9 !important;
+    font-weight: 500;
+    font-size: 2.3rem;
+    letter-spacing: -0.02em;
+    margin-top: 0.5rem;
+    margin-bottom: 0.4rem;
+}
+.hero-sub {
+    color: #c4c7c5 !important;
+    font-size: 1.05rem;
+}
+.suggestion-item {
+    background: rgba(255, 255, 255, 0.03) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 16px;
+    padding: 12px 18px;
+    margin-bottom: 8px;
+    color: #e3e3e3 !important;
+}
+.user-profile-card {
+    background: #1e1f20;
+    border: 1px solid #37393b;
+    border-radius: 24px;
+    padding: 8px 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.badge {
+    display: inline-block;
+    padding: 3px 9px;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: white !important;
+    font-size: 0.75em;
+    font-weight: 600;
+}
+.admin-card {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 14px;
+    padding: 16px;
+    text-align: center;
+    margin-bottom: 10px;
+}
+.admin-stat {
+    font-size: 2.2em;
+    font-weight: 800;
+    color: #34d399;
+}
+.avatar-circle {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #059669, #10b981);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.85em;
+    font-weight: 700;
+    color: white !important;
+    flex-shrink: 0;
+}
+.hero-container {
+    text-align: center;
+    margin: 3.5rem auto 2rem auto;
+    max-width: 680px;
+}
+</style>
+"""
+    else:
+        # Device / System theme
+        css_payload = """
+<style>
+div[data-testid="stToolbar"] { display: none !important; visibility: hidden !important; }
+#MainMenu { display: none !important; visibility: hidden !important; }
+footer { display: none !important; visibility: hidden !important; }
+.stDeployButton { display: none !important; visibility: hidden !important; }
+a[href*="github.com"] { display: none !important; visibility: hidden !important; }
+header[data-testid="stHeader"] { background: transparent !important; }
+div[data-testid="stSidebarCollapsedControl"] {
+    display: flex !important;
+    visibility: visible !important;
+    z-index: 999999 !important;
+    top: 12px !important;
+    left: 12px !important;
+}
+
+@media (prefers-color-scheme: light) {
+    .stApp { background: radial-gradient(circle at 50% 30%, #eef4ff 0%, #f4f7fc 50%, #ffffff 100%) !important; color: #1f1f1f !important; }
+    .stApp * { color: #1f1f1f !important; }
+    section[data-testid="stSidebar"] { background-color: #f0f4f9 !important; border-right: 1px solid #dfe3e7 !important; }
+    section[data-testid="stSidebar"] * { color: #1f1f1f !important; }
+    .stChatMessage { background-color: #ffffff !important; border: 1px solid #dfe3e7 !important; color: #1f1f1f !important; }
+    .stChatMessage * { color: #1f1f1f !important; }
+    .citation-card { background-color: #f1f5f9 !important; border-left: 3px solid #059669 !important; color: #1e293b !important; }
+    .citation-card * { color: #1e293b !important; }
+    .hero-title { color: #1f1f1f !important; }
+    .hero-sub { color: #444746 !important; }
+}
+@media (prefers-color-scheme: dark) {
+    .stApp { background: radial-gradient(circle at 50% 30%, #17243c 0%, #0d121c 55%, #07090e 100%) !important; color: #f0f4f9 !important; }
+    section[data-testid="stSidebar"] { background-color: #131314 !important; border-right: 1px solid #282a2c !important; }
+    .stChatMessage { background-color: #1e1f20 !important; border: 1px solid #282a2c !important; color: #f0f4f9 !important; }
+    .citation-card { background-color: rgba(255, 255, 255, 0.04) !important; border-left: 3px solid #10b981 !important; color: #e2e8f0 !important; }
+    .hero-title { color: #f0f4f9 !important; }
+    .hero-sub { color: #c4c7c5 !important; }
+}
+.badge { display: inline-block; padding: 3px 9px; border-radius: 12px; background: linear-gradient(135deg, #059669, #10b981); color: white !important; font-size: 0.75em; font-weight: 600; }
+.admin-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 10px; }
+.admin-stat { font-size: 2.2em; font-weight: 800; color: #34d399; }
+.avatar-circle { width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, #059669, #10b981); display: flex; align-items: center; justify-content: center; font-size: 0.85em; font-weight: 700; color: white !important; flex-shrink: 0; }
+.hero-container { text-align: center; margin: 3.5rem auto 2rem auto; max-width: 680px; }
+</style>
+"""
+
+    st.html(css_payload)
 
 apply_app_theme(st.session_state.app_theme)
 
@@ -416,22 +445,6 @@ def get_user_rag_pipeline(user_namespace: str):
             exception=e,
         )
         return None, None
-
-def get_gemini_sparkle_svg(size: int = 32) -> str:
-    """Returns the SVG string for the 4-point gradient sparkle."""
-    return f"""
-    <svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#sparkle_gradient)"/>
-        <defs>
-            <linearGradient id="sparkle_gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
-                <stop stop-color="#4E95FF"/>
-                <stop offset="0.33" stop-color="#9E7AFF"/>
-                <stop offset="0.66" stop-color="#F576A4"/>
-                <stop offset="1" stop-color="#FF9B54"/>
-            </linearGradient>
-        </defs>
-    </svg>
-    """
 
 @st.dialog("🔐 Sign In / Create Account")
 def show_auth_modal(initial_tab: int = 0):
@@ -508,7 +521,7 @@ def show_auth_modal(initial_tab: int = 0):
                             add_chat_message(
                                 sid,
                                 "assistant",
-                                f"Welcome @{new_user['username']}! ✨ I am your AI Assistant. Attach documents below to begin querying your data.",
+                                f"Welcome @{new_user['username']}! 🥑 I am your AI Assistant. Attach documents below to begin querying your data.",
                                 [],
                             )
                             st.session_state.current_session_id = sid
@@ -735,7 +748,7 @@ def main():
             add_chat_message(
                 init_sid,
                 "assistant",
-                f"Hello @{username}! ✨ I am your AI Assistant. What can I help you explore today?",
+                f"Hello @{username}! 🥑 I am your AI Assistant. What can I help you explore today?",
                 [],
             )
             st.session_state.current_session_id = init_sid
@@ -746,24 +759,23 @@ def main():
     active_session_id = st.session_state.current_session_id
 
     # =========================================================================
-    # SIDEBAR: Google Gemini-style Layout (Sparkle, Chat/Spark pills, Actions, Recents, User)
+    # SIDEBAR: Google Gemini-style Layout (Avocado, Mode Pills, Actions, Recents, User)
     # =========================================================================
     with st.sidebar:
-        # Top Header: Sparkle Logo + Brand Name
-        sparkle_svg = get_gemini_sparkle_svg(26)
-        st.markdown(f"""
+        # Top Header: Avocado Logo + Brand Name
+        st.markdown("""
         <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.8rem; padding: 4px 0;">
-            {sparkle_svg}
-            <div style="font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em;">AI Assistant</div>
+            <span style="font-size: 1.8rem;">🥑</span>
+            <div style="font-weight: 700; font-size: 1.2rem; letter-spacing: -0.01em;">AI Assistant</div>
         </div>
         """, unsafe_allow_html=True)
 
-        # Mode Pills: [ Chat ] [ Spark BETA ] (matching Gemini screenshot)
+        # Mode Pills: [ Chat ] [ Deep Insights ]
         col_m1, col_m2 = st.columns(2)
         with col_m1:
             st.button("💬 Chat", use_container_width=True, key="mode_chat_pill", type="primary")
         with col_m2:
-            st.button("✨ Spark BETA", use_container_width=True, key="mode_spark_pill", type="secondary")
+            st.button("⚡ Insights", use_container_width=True, key="mode_spark_pill", type="secondary")
 
         st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
 
@@ -774,7 +786,7 @@ def main():
                 add_chat_message(
                     new_sid,
                     "assistant",
-                    f"Fresh conversation started! What would you like to explore in your documents, @{username}? ✨",
+                    f"Fresh conversation started! What would you like to explore in your documents, @{username}? 🥑",
                     [],
                 )
                 st.session_state.current_session_id = new_sid
@@ -822,13 +834,13 @@ def main():
                                     st.error(f"Error removing: {del_err}")
                         st.markdown("<hr style='margin: 4px 0 6px 0; border: none; border-top: 1px solid rgba(128,128,128,0.15);'/>", unsafe_allow_html=True)
                 else:
-                    st.info("Vault is empty. Attach documents using '+' on the main screen.")
+                    st.info("Vault is empty. Click '+' beside the chat bar to attach documents.")
             else:
                 st.caption("💡 Sign in to view and manage your uploaded files.")
 
         st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
 
-        # Recent Chats Section (matching Gemini screenshot)
+        # Recent Chats Section
         st.markdown("<div style='font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;'>Recent</div>", unsafe_allow_html=True)
         if is_authenticated and user_sessions:
             for s in user_sessions[:12]:
@@ -855,7 +867,7 @@ def main():
 
         st.markdown("---")
 
-        # Bottom Profile Bar (matching Gemini screenshot: circular avatar + name + settings)
+        # Bottom Profile Bar (avatar + username + settings)
         active_view = "workspace"
         initial_letter = username[:1].upper() if username else "G"
         role_label = "Pro" if is_authenticated else "Guest"
@@ -926,7 +938,7 @@ def main():
                     show_auth_modal(0)
 
     # =========================================================================
-    # MAIN CANVAS: Google Gemini Experience
+    # MAIN CANVAS
     # =========================================================================
     if active_view == "admin" and is_authenticated:
         render_admin_suite(user)
@@ -966,21 +978,20 @@ def main():
     # HERO CANVAS: "Where should we start?" vs "Sign in or Sign up to get started"
     # =========================================================================
     if not messages:
-        hero_sparkle = get_gemini_sparkle_svg(36)
         if is_authenticated:
-            st.markdown(f"""
-            <div class="gemini-hero-container">
-                <div>{hero_sparkle}</div>
-                <h1 class="gemini-hero-title">Where should we start?</h1>
-                <p class="gemini-hero-sub">Ask questions about your uploaded documents or explore insights.</p>
+            st.markdown("""
+            <div class="hero-container">
+                <div style="font-size: 3.2rem; margin-bottom: 0.5rem;">🥑</div>
+                <h1 class="hero-title">Where should we start?</h1>
+                <p class="hero-sub">Ask questions about your uploaded documents or explore insights.</p>
             </div>
             """, unsafe_allow_html=True)
         else:
-            st.markdown(f"""
-            <div class="gemini-hero-container">
-                <div>{hero_sparkle}</div>
-                <h1 class="gemini-hero-title">Sign in or Sign up to get started</h1>
-                <p class="gemini-hero-sub">Sign in to query private documents, save conversation history, and access your vault.</p>
+            st.markdown("""
+            <div class="hero-container">
+                <div style="font-size: 3.2rem; margin-bottom: 0.5rem;">🥑</div>
+                <h1 class="hero-title">Sign in or Sign up to get started</h1>
+                <p class="hero-sub">Sign in to query private documents, save conversation history, and access your vault.</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -994,7 +1005,7 @@ def main():
                     if st.button("✨ Create Account", type="secondary", use_container_width=True):
                         show_auth_modal(1)
 
-        # Gemini-style action suggestions (matching screenshot)
+        # Gemini-style action suggestions
         st.markdown("<div style='max-width: 650px; margin: 1.5rem auto 1rem auto;'>", unsafe_allow_html=True)
 
         suggestions = [
@@ -1009,7 +1020,6 @@ def main():
                 if not is_authenticated:
                     show_auth_modal(0)
                 else:
-                    # Ingest suggestion as initial query
                     assert active_session_id is not None
                     add_chat_message(active_session_id, "user", text)
                     st.rerun()
@@ -1018,7 +1028,7 @@ def main():
 
     # Render Conversation Messages
     for msg in messages:
-        avatar = "👤" if msg["role"] == "user" else "✨"
+        avatar = "👤" if msg["role"] == "user" else "🥑"
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
             if msg.get("citations"):
@@ -1037,103 +1047,121 @@ def main():
                         """, unsafe_allow_html=True)
 
     # =========================================================================
-    # MAIN SCREEN: '+' Document Attachment & Ingestion Section
+    # ATTACHMENT TRAY TOGGLE: Aligned directly with the Ask Question bar
     # =========================================================================
-    with st.expander("📎 / ➕ Attach Documents (PDF, Word DOCX, CSV, TXT, Markdown)", expanded=False):
-        st.caption("Upload documents to index into your private vault. Supported: `.pdf`, `.docx`, `.csv`, `.txt`, `.md`")
-        uploaded_files = st.file_uploader(
-            "Select files",
-            type=["pdf", "docx", "csv", "txt", "md"],
-            accept_multiple_files=True,
-            key="gemini_doc_uploader",
-            label_visibility="collapsed",
-        )
+    if st.session_state.show_uploader:
+        with st.container():
+            st.markdown("""
+            <div style="background: rgba(128,128,128,0.06); border: 1px solid rgba(128,128,128,0.18); border-radius: 16px; padding: 16px; margin-bottom: 12px;">
+                <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px;">📂 Document Ingestion Tray</div>
+                <div style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px;">Select files to index into your private vault (PDF, DOCX, CSV, TXT, MD).</div>
+            """, unsafe_allow_html=True)
 
-        c_reset, c_btn = st.columns([1, 2])
-        with c_reset:
-            reset_vault = st.checkbox("Reset Index", value=False, help="Wipe only your private vector namespace.")
-        with c_btn:
-            process_btn = st.button("📥 Ingest into Knowledge Vault", type="primary", use_container_width=True)
+            uploaded_files = st.file_uploader(
+                "Upload documents to index into your private vault",
+                type=["pdf", "docx", "csv", "txt", "md"],
+                accept_multiple_files=True,
+                key="chat_bar_uploader",
+                label_visibility="collapsed",
+            )
 
-        if process_btn:
-            if not is_authenticated:
-                show_auth_modal(0)
-            elif not uploaded_files and not any(user_docs_dir.iterdir()):
-                st.warning("Please select at least one document to upload.")
-            else:
-                try:
-                    if uploaded_files:
-                        with st.spinner("Validating and uploading files..."):
-                            for uploaded_file in uploaded_files:
-                                safe_name = sanitize_filename(uploaded_file.name)
-                                file_bytes = uploaded_file.getbuffer().tobytes()
-                                is_valid, val_msg = validate_document_content(file_bytes, safe_name)
-                                if not is_valid:
-                                    st.error(f"Security Alert for '{uploaded_file.name}': {val_msg}")
-                                    record_activity(username, "SECURITY_BLOCKED_FILE", f"Blocked '{uploaded_file.name}': {val_msg}", user_id=user_id)
-                                    continue
-                                save_path = user_docs_dir / safe_name
-                                with open(save_path, "wb") as f:
-                                    f.write(file_bytes)
+            c_reset, c_btn = st.columns([1, 2])
+            with c_reset:
+                reset_vault = st.checkbox("Reset Index", value=False, help="Wipe only your private vector namespace.")
+            with c_btn:
+                process_btn = st.button("📥 Ingest into Knowledge Vault", type="primary", use_container_width=True)
 
-                    # If admin and user dir empty, copy sample docs from config.DOCS_DIR
-                    if not any(user_docs_dir.iterdir()) and is_admin:
-                        for sf in config.DOCS_DIR.iterdir():
-                            if sf.is_file() and sf.suffix.lower() in SUPPORTED_EXTENSIONS:
-                                shutil.copy2(sf, user_docs_dir / sf.name)
+            if process_btn:
+                if not is_authenticated:
+                    show_auth_modal(0)
+                elif not uploaded_files and not any(user_docs_dir.iterdir()):
+                    st.warning("Please select at least one document to upload.")
+                else:
+                    try:
+                        if uploaded_files:
+                            with st.spinner("Validating and uploading files..."):
+                                for uploaded_file in uploaded_files:
+                                    safe_name = sanitize_filename(uploaded_file.name)
+                                    file_bytes = uploaded_file.getbuffer().tobytes()
+                                    is_valid, val_msg = validate_document_content(file_bytes, safe_name)
+                                    if not is_valid:
+                                        st.error(f"Security Alert for '{uploaded_file.name}': {val_msg}")
+                                        record_activity(username, "SECURITY_BLOCKED_FILE", f"Blocked '{uploaded_file.name}': {val_msg}", user_id=user_id)
+                                        continue
+                                    save_path = user_docs_dir / safe_name
+                                    with open(save_path, "wb") as f:
+                                        f.write(file_bytes)
 
-                    with st.spinner(f"Indexing documents into cloud vault '{user_namespace}'..."):
-                        docs = load_documents_from_directory(user_docs_dir)
-                        if not docs:
-                            st.warning("No supported documents found to index.")
-                        else:
-                            st.cache_resource.clear()
-                            chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
-                            embeddings = get_embeddings()
+                        # If admin and user dir empty, copy sample docs from config.DOCS_DIR
+                        if not any(user_docs_dir.iterdir()) and is_admin:
+                            for sf in config.DOCS_DIR.iterdir():
+                                if sf.is_file() and sf.suffix.lower() in SUPPORTED_EXTENSIONS:
+                                    shutil.copy2(sf, user_docs_dir / sf.name)
 
-                            if reset_vault:
-                                for ed in get_user_documents(user_id):
-                                    delete_user_document(user_id, ed["filename"])
+                        with st.spinner(f"Indexing documents into cloud vault '{user_namespace}'..."):
+                            docs = load_documents_from_directory(user_docs_dir)
+                            if not docs:
+                                st.warning("No supported documents found to index.")
+                            else:
+                                st.cache_resource.clear()
+                                chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
+                                embeddings = get_embeddings()
 
-                            index_documents(
-                                documents=chunks,
-                                persist_directory=config.CHROMA_PERSIST_DIR,
-                                embeddings=embeddings,
-                                recreate=reset_vault,
-                                namespace=user_namespace,
-                            )
+                                if reset_vault:
+                                    for ed in get_user_documents(user_id):
+                                        delete_user_document(user_id, ed["filename"])
 
-                            file_chunk_map: Dict[str, int] = {}
-                            for c in chunks:
-                                fn = c.metadata.get("filename", "unknown.pdf")
-                                file_chunk_map[fn] = file_chunk_map.get(fn, 0) + 1
-                            for fn, count in file_chunk_map.items():
-                                record_user_document(user_id, fn, count)
-                                record_activity(
-                                    username,
-                                    "DOCUMENT_UPLOAD",
-                                    f"Uploaded & indexed '{fn}' ({count} chunks)",
-                                    user_id=user_id,
+                                index_documents(
+                                    documents=chunks,
+                                    persist_directory=config.CHROMA_PERSIST_DIR,
+                                    embeddings=embeddings,
+                                    recreate=reset_vault,
+                                    namespace=user_namespace,
                                 )
 
-                            st.cache_resource.clear()
-                            st.success(f"Indexed {len(docs)} section(s) into {len(chunks)} chunks across your files!")
-                            st.rerun()
-                except Exception as e:
-                    record_error(
-                        service="Document Ingestion",
-                        user_message="Document upload or indexing failed",
-                        exception=e,
-                    )
-                    st.error(f"⚠️ Document processing error: {e}")
+                                file_chunk_map: Dict[str, int] = {}
+                                for c in chunks:
+                                    fn = c.metadata.get("filename", "unknown.pdf")
+                                    file_chunk_map[fn] = file_chunk_map.get(fn, 0) + 1
+                                for fn, count in file_chunk_map.items():
+                                    record_user_document(user_id, fn, count)
+                                    record_activity(
+                                        username,
+                                        "DOCUMENT_UPLOAD",
+                                        f"Uploaded & indexed '{fn}' ({count} chunks)",
+                                        user_id=user_id,
+                                    )
+
+                                st.cache_resource.clear()
+                                st.session_state.show_uploader = False
+                                st.success(f"Indexed {len(docs)} section(s) into {len(chunks)} chunks across your files!")
+                                st.rerun()
+                    except Exception as e:
+                        record_error(
+                            service="Document Ingestion",
+                            user_message="Document upload or indexing failed",
+                            exception=e,
+                        )
+                        st.error(f"⚠️ Document processing error: {e}")
+
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    # '+' Attachment Trigger row right alongside/above chat input
+    col_plus_btn, col_hint = st.columns([1, 8])
+    with col_plus_btn:
+        toggle_label = "➖ Close" if st.session_state.show_uploader else "➕ Attach"
+        if st.button(toggle_label, key="toggle_attach_btn", help="Attach PDF, Word DOCX, CSV, TXT, MD"):
+            st.session_state.show_uploader = not st.session_state.show_uploader
+            st.rerun()
+    with col_hint:
+        if not st.session_state.show_uploader:
+            st.caption("Click **➕ Attach** to upload and index documents into your private vault.")
 
     # =========================================================================
     # CHAT PROMPT INPUT BAR & QUERY PROCESSING
     # =========================================================================
-    # Center placeholder customized per user instructions
     if user_query := st.chat_input("Ask a question or explore your documents..."):
         if not is_authenticated:
-            # Guest mode: prompt to sign in or allow demo
             show_auth_modal(0)
             st.info("💡 Please sign in or create an account to query your private knowledge vault.")
         else:
@@ -1150,7 +1178,7 @@ def main():
             with st.chat_message("user", avatar="👤"):
                 st.markdown(user_query)
 
-            with st.chat_message("assistant", avatar="✨"):
+            with st.chat_message("assistant", avatar="🥑"):
                 active_key = config.GROQ_API_KEY if config.LLM_PROVIDER == "groq" else config.GOOGLE_API_KEY
                 if not active_key:
                     err_msg = "⚠️ AI API Key is unconfigured. Please configure API keys in Master Admin Suite or .env."
@@ -1189,7 +1217,7 @@ def main():
                                     "- Or ask about specific topics contained in your uploaded documents!"
                                 )
                             else:
-                                fallback_msg = "Your knowledge vault is currently empty. Attach and ingest documents using '+' above to start asking questions!"
+                                fallback_msg = "Your knowledge vault is currently empty. Click '➕ Attach' above to upload documents!"
                             st.markdown(fallback_msg)
                             add_chat_message(active_session_id, "assistant", fallback_msg)
                         else:
