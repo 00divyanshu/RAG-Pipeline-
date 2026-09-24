@@ -1475,11 +1475,6 @@ def render_collapsed_sidebar_rail(username: str, role_label: str, initial_letter
         </div>
       </div>
     </div>
-
-    <!-- Mobile-Only Compact Sidebar Opener (Top-Left) -->
-    <div id="mobile-sidebar-opener" class="mobile-logo-opener" data-rail-action="expand" title="Open Sidebar">
-      🥑
-    </div>
     """
     st.html(rail_html)
 
@@ -1496,7 +1491,7 @@ def render_collapsed_sidebar_rail(username: str, role_label: str, initial_letter
                 var target = e.target;
                 if (!target) return;
                 
-                var actionEl = target.closest && target.closest('[data-rail-action], .rail-item, .rail-free-space, .collapsed-rail, .mobile-logo-opener');
+                var actionEl = target.closest && target.closest('[data-rail-action], .rail-item, .rail-free-space, .collapsed-rail');
                 if (!actionEl) return;
                 
                 var action = actionEl.getAttribute('data-rail-action') || 'expand';
