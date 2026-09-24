@@ -152,13 +152,16 @@ def record_register_attempt(client_id: str) -> None:
 # Input Validation & Sanitization
 # ==============================================================================
 
-def sanitize_filename(filename: str) -> str:
+ALLOWED_DOCUMENT_EXTENSIONS = {".pdf", ".docx", ".csv", ".txt", ".md"}
+
+def sanitize_filename(filename: str, default_ext: str = ".pdf") -> str:
     """
     Sanitizes uploaded document filenames to prevent Path Traversal, Directory
     Climbing, null byte injections, and shell escape exploits.
+    Preserves valid document extensions (.pdf, .docx, .csv, .txt, .md).
     """
     if not filename:
-        return "unnamed_document.pdf"
+        return f"unnamed_document{default_ext}"
 
     # Remove null bytes and control characters
     clean = filename.replace("\x00", "").strip()
@@ -177,11 +180,13 @@ def sanitize_filename(filename: str) -> str:
         base, dot, ext = clean.rpartition(".")
         clean = base[:75] + "." + ext
 
-    # Enforce .pdf extension
-    if not clean.lower().endswith(".pdf"):
-        clean += ".pdf"
+    # Check extension
+    _, dot, ext = clean.rpartition(".")
+    suffix = ("." + ext.lower()) if dot else ""
+    if suffix not in ALLOWED_DOCUMENT_EXTENSIONS:
+        clean += default_ext
 
-    return clean or "document.pdf"
+    return clean or f"document{default_ext}"
 
 
 def validate_pdf_content(file_bytes: bytes, max_mb: int = 30) -> Tuple[bool, str]:
@@ -201,6 +206,37 @@ def validate_pdf_content(file_bytes: bytes, max_mb: int = 30) -> Tuple[bool, str
         return False, "Invalid file format. File does not contain a valid PDF magic header (%PDF-)."
 
     return True, "Valid PDF file."
+
+
+def validate_document_content(file_bytes: bytes, filename: str, max_mb: int = 30) -> Tuple[bool, str]:
+    """
+    Validates uploaded document binary content against magic bytes, binary headers,
+    and size limits for PDF, DOCX, CSV, TXT, and MD files.
+    """
+    if not file_bytes:
+        return False, "Uploaded file is empty."
+
+    max_bytes = max_mb * 1024 * 1024
+    if len(file_bytes) > max_bytes:
+        return False, f"File size exceeds the {max_mb} MB limit."
+
+    ext = Path(filename).suffix.lower()
+
+    if ext == ".pdf":
+        if not file_bytes.startswith(b"%PDF-"):
+            return False, "Invalid file format. File does not contain a valid PDF magic header (%PDF-)."
+    elif ext == ".docx":
+        if not file_bytes.startswith(b"PK\x03\x04"):
+            return False, "Invalid file format. File does not contain valid Word DOCX magic bytes."
+    elif ext in [".csv", ".txt", ".md"]:
+        if file_bytes.startswith(b"MZ") or file_bytes.startswith(b"\x7fELF"):
+            return False, f"Malicious payload blocked: Executable binary disguised as {ext} file."
+        if b"\x00" in file_bytes[:1024]:
+            return False, f"Invalid text format: Binary content or null bytes detected in {ext} file."
+    else:
+        return False, f"Unsupported file extension: {ext}"
+
+    return True, "Valid document format."
 
 
 def validate_username(username: str) -> Tuple[bool, str]:

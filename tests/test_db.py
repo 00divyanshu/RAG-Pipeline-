@@ -24,24 +24,29 @@ class TestDatabaseAndAuth(unittest.TestCase):
         """Test that master admin @dmin is pre-seeded and authenticates."""
         admin = authenticate_user(config.ADMIN_USERNAME, config.ADMIN_PASSWORD)
         self.assertIsNotNone(admin)
+        if not admin:
+            self.fail("Admin not found")
         self.assertEqual(admin["username"], config.ADMIN_USERNAME)
         self.assertEqual(admin["role"], "admin")
 
     def test_user_registration_and_auth(self):
         """Test creating a regular user and authenticating."""
-        test_uname = f"test_user_{int(unittest.mock.time.time()) if hasattr(unittest.mock, 'time') else 9999}"
         import time
         test_uname = f"test_user_{int(time.time())}"
         
         ok, msg, user = register_user(test_uname, "password123")
         self.assertTrue(ok)
         self.assertIsNotNone(user)
+        if not user:
+            self.fail("Registration failed")
         self.assertEqual(user["username"], test_uname)
         self.assertEqual(user["role"], "user")
 
         # Authenticate with correct credentials
         auth_success = authenticate_user(test_uname, "password123")
         self.assertIsNotNone(auth_success)
+        if not auth_success:
+            self.fail("Authentication failed")
         self.assertEqual(auth_success["id"], user["id"])
 
         # Authenticate with wrong password
@@ -57,6 +62,8 @@ class TestDatabaseAndAuth(unittest.TestCase):
         import time
         test_uname = f"chat_tester_{int(time.time())}"
         _, _, user = register_user(test_uname, "secret123")
+        if not user:
+            self.fail("Registration failed")
         user_id = user["id"]
 
         # Create session
@@ -88,6 +95,8 @@ class TestDatabaseAndAuth(unittest.TestCase):
         import time
         test_uname = f"doc_tester_{int(time.time())}"
         _, _, user = register_user(test_uname, "docpass123")
+        if not user:
+            self.fail("Registration failed")
         user_id = user["id"]
 
         record_user_document(user_id, "company_manual.pdf", 14)

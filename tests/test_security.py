@@ -11,6 +11,7 @@ from src.security import (
     RateLimiter,
     sanitize_filename,
     validate_pdf_content,
+    validate_document_content,
     validate_username,
     validate_password,
     sanitize_html,
@@ -174,7 +175,8 @@ class TestCyberDefenseSuite(unittest.TestCase):
         ok, _, user = register_user(username, "cyberPass1234!")
         self.assertTrue(ok)
         self.assertIsNotNone(user)
-        assert user is not None
+        if not user:
+            self.fail("User registration failed to return user data")
         user_id = user["id"]
 
         # 2. Issue session token (survives browser refresh)
@@ -185,7 +187,8 @@ class TestCyberDefenseSuite(unittest.TestCase):
         # 3. Validate retrieval
         restored = get_user_by_auth_token(token)
         self.assertIsNotNone(restored)
-        assert restored is not None
+        if not restored:
+            self.fail("Token failed to retrieve user data")
         self.assertEqual(restored["id"], user_id)
         self.assertEqual(restored["username"], username)
 
@@ -223,6 +226,36 @@ class TestCyberDefenseSuite(unittest.TestCase):
             self.assertIn("filename", doc)
             self.assertIn("username", doc)
             self.assertIn("chunk_count", doc)
+
+    def test_multi_format_document_validation(self):
+        """Verifies validation and sanitization for PDF, DOCX, CSV, TXT, MD."""
+        # 1. Valid Word DOCX (PK ZIP magic bytes)
+        fake_docx = b"PK\x03\x04\x14\x00\x00\x00\x08\x00word/document.xml"
+        ok, _ = validate_document_content(fake_docx, "report.docx")
+        self.assertTrue(ok)
+
+        # 2. Valid CSV content
+        valid_csv = b"name,age,role\nAlice,30,Engineer\nBob,25,Designer\n"
+        ok, _ = validate_document_content(valid_csv, "data.csv")
+        self.assertTrue(ok)
+
+        # 3. Disguised binary executable payload in CSV / TXT
+        malicious_csv = b"MZ\x90\x00\x03\x00\x00\x00malicious binary"
+        ok, msg = validate_document_content(malicious_csv, "fake.csv")
+        self.assertFalse(ok)
+        self.assertIn("Executable binary", msg)
+
+        # 4. Null byte injection in text file
+        null_byte_txt = b"normal text\x00hidden shellcode"
+        ok, msg = validate_document_content(null_byte_txt, "notes.txt")
+        self.assertFalse(ok)
+        self.assertIn("null bytes", msg)
+
+        # 5. Filename sanitization preserves multi-format extensions
+        self.assertEqual(sanitize_filename("my_financial_report.docx"), "my_financial_report.docx")
+        self.assertEqual(sanitize_filename("sales_2026.csv"), "sales_2026.csv")
+        self.assertEqual(sanitize_filename("readme_guide.md"), "readme_guide.md")
+        self.assertEqual(sanitize_filename("../../../etc/passwd.csv"), "passwd.csv")
 
 
 if __name__ == "__main__":

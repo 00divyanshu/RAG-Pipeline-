@@ -284,9 +284,11 @@ def list_indexed_documents(
 
     # Also include any local files not yet counted
     if docs_dir and Path(docs_dir).exists():
-        for f in Path(docs_dir).glob("*.pdf"):
-            if f.name not in counts:
-                counts[f.name] = 0
+        supported_exts = {".pdf", ".docx", ".csv", ".txt", ".md"}
+        for f in Path(docs_dir).iterdir():
+            if f.is_file() and f.suffix.lower() in supported_exts:
+                if f.name not in counts:
+                    counts[f.name] = 0
 
     return [{"filename": fn, "chunks": count} for fn, count in sorted(counts.items())]
 
