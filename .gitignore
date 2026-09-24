@@ -12,8 +12,12 @@ __pycache__/
 # Vector Database (Local persistent storage)
 chroma_db/
 
-# Environment Variables & Secrets
+# Environment Variables & Secrets (NEVER SHARE ON GITHUB)
 .env
+.env.*
+*.env
+.streamlit/secrets.toml
+secrets.toml
 
 # Continue Editor Agent files
 .continue/
@@ -24,6 +28,10 @@ chroma_db/
 .DS_Store
 Thumbs.db
 *.log
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+data/local_app.db
 
 # User uploaded documents (keep sample_policy.pdf)
 data/docs/*

@@ -6,11 +6,9 @@ try:
 except ImportError:
     pass
 
-import os
 import shutil
 import streamlit as st
-from pathlib import Path
-from typing import Optional, List, Dict, Any
+from typing import Dict, Any
 
 from src import config
 from src.loader import load_documents_from_directory
@@ -59,7 +57,7 @@ st.set_page_config(
 # Initialize database schema and pre-seeded admin
 try:
     init_db()
-except Exception as _e:
+except Exception:
     pass
 
 # Custom styling for modern, responsive, high-fidelity UI
@@ -182,7 +180,7 @@ def render_auth_portal():
                         st.error("Passwords do not match. Please re-enter.")
                     else:
                         ok, msg, new_user = register_user(reg_username, reg_password)
-                        if ok:
+                        if ok and new_user is not None:
                             st.session_state.user = new_user
                             # Auto-create initial conversation session
                             sid = create_chat_session(new_user["id"], "Initial Chat")
@@ -398,7 +396,7 @@ def main():
             with st.expander("🛠️ Quick Diagnostics & Status", expanded=False):
                 st.write(f"- Engine: `{config.LLM_MODEL}`")
                 st.write(f"- Pinecone: `{config.PINECONE_INDEX_NAME}`")
-                st.write(f"- Database: `Neon PostgreSQL (Active)`")
+                st.write("- Database: `Neon PostgreSQL (Active)`")
                 if st.button("🔄 Quick Ping Stack", key="quick_ping_btn", use_container_width=True):
                     try:
                         idx = get_pinecone_index()
@@ -657,7 +655,8 @@ def main():
                         add_chat_message(active_session_id, "assistant", fallback_msg)
                     else:
                         # Stream response tokens live to user
-                        full_answer = st.write_stream(pipeline.stream_response(context_str, user_query))
+                        streamed_res = st.write_stream(pipeline.stream_response(context_str, user_query))
+                        full_answer = "".join(str(chunk) for chunk in streamed_res) if isinstance(streamed_res, list) else str(streamed_res)
 
                         if citations:
                             with st.expander(f"📌 View {len(citations)} Source Citations", expanded=False):

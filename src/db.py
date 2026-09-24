@@ -96,7 +96,7 @@ def init_db():
             );
             """)
         else:
-            cur.executescript("""
+            getattr(conn, "executescript")("""
             CREATE TABLE IF NOT EXISTS users (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 username TEXT UNIQUE NOT NULL,

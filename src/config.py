@@ -128,17 +128,10 @@ def get_llm_provider() -> str:
         return explicit
     if get_groq_api_key():
         return "groq"
-    if get_google_api_key() or is_cloud_environment():
-        return "gemini"
-    return "ollama"
+    return "gemini"
 
 def get_embedding_provider() -> str:
-    explicit = _get_config_val("EMBEDDING_PROVIDER", "").lower()
-    if explicit:
-        return explicit
-    if get_google_api_key() or is_cloud_environment():
-        return "gemini"
-    return "ollama"
+    return "gemini"
 
 def get_vector_db_provider() -> str:
     explicit = _get_config_val("VECTOR_DB_PROVIDER", "").lower()
@@ -151,14 +144,10 @@ def get_vector_db_provider() -> str:
 def get_llm_model() -> str:
     if get_llm_provider() == "groq":
         return _get_config_val("GROQ_LLM_MODEL", "openai/gpt-oss-120b")
-    elif get_llm_provider() == "gemini":
-        return _get_config_val("GEMINI_LLM_MODEL", "gemini-3.5-flash")
-    return _get_config_val("LLM_MODEL", "qwen2.5-coder:7b")
+    return _get_config_val("GEMINI_LLM_MODEL", "gemini-3.5-flash")
 
 def get_embedding_model() -> str:
-    if get_embedding_provider() == "gemini":
-        return _get_config_val("GEMINI_EMBEDDING_MODEL", "models/gemini-embedding-001")
-    return _get_config_val("EMBEDDING_MODEL", "nomic-embed-text")
+    return _get_config_val("GEMINI_EMBEDDING_MODEL", "models/gemini-embedding-001")
 
 # Initial exports
 DATABASE_URL = get_database_url()
@@ -172,9 +161,6 @@ EMBEDDING_PROVIDER = get_embedding_provider()
 VECTOR_DB_PROVIDER = get_vector_db_provider()
 GEMINI_LLM_MODEL = _get_config_val("GEMINI_LLM_MODEL", "gemini-3.5-flash")
 GEMINI_EMBEDDING_MODEL = _get_config_val("GEMINI_EMBEDDING_MODEL", "models/gemini-embedding-001")
-OLLAMA_BASE_URL = _get_config_val("OLLAMA_BASE_URL", "http://localhost:11434")
-OLLAMA_LLM_MODEL = _get_config_val("LLM_MODEL", "qwen2.5-coder:7b")
-OLLAMA_EMBEDDING_MODEL = _get_config_val("EMBEDDING_MODEL", "nomic-embed-text")
 LLM_MODEL = get_llm_model()
 EMBEDDING_MODEL = get_embedding_model()
 

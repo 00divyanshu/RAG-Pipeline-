@@ -1,2 +1,2 @@
-"""Local PDF RAG Package with LangChain & Ollama"""
+"""Cloud Multi-Tenant RAG Pipeline with Gemini, Groq, Pinecone, and Neon PostgreSQL"""
 

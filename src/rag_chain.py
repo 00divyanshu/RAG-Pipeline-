@@ -1,3 +1,4 @@
+import os
 import logging
 from typing import Dict, Any, List, Optional, Tuple, Iterator
 from langchain_core.prompts import ChatPromptTemplate
@@ -64,7 +65,7 @@ class RAGPipeline:
         groq_key = config.GROQ_API_KEY
         google_key = config.GOOGLE_API_KEY
 
-        if active_provider == "groq" or (groq_key and active_provider != "ollama"):
+        if active_provider == "groq" or (groq_key and active_provider != "gemini"):
             if not groq_key:
                 raise ValueError(
                     "Groq API Key is missing! "
@@ -72,40 +73,29 @@ class RAGPipeline:
                 )
             from langchain_groq import ChatGroq
             model = llm_model or config.GROQ_LLM_MODEL
-            logger.info(f"Using Groq Cloud LLM: {model}")
-            self.llm = ChatGroq(
-                model_name=model,
-                groq_api_key=groq_key,
-                temperature=temperature,
-            )
-        elif active_provider == "gemini" or google_key:
+            os.environ["GROQ_API_KEY"] = groq_key
+            groq_kwargs: Dict[str, Any] = {
+                "model": model,
+                "groq_api_key": groq_key,
+                "temperature": temperature,
+            }
+            self.llm = ChatGroq(**groq_kwargs)
+        else:
             if not google_key:
                 raise ValueError(
-                    "Google Gemini API Key is missing! "
-                    "Please configure GOOGLE_API_KEY in your Streamlit Cloud Secrets or via the sidebar."
+                    "Cloud LLM API Key is missing! "
+                    "Please configure GROQ_API_KEY or GOOGLE_API_KEY in your Streamlit Cloud Secrets or Admin panel."
                 )
+            os.environ["GOOGLE_API_KEY"] = google_key
             from langchain_google_genai import ChatGoogleGenerativeAI
             model = llm_model or config.GEMINI_LLM_MODEL
             logger.info(f"Using Google Gemini Flash LLM: {model}")
-            self.llm = ChatGoogleGenerativeAI(
-                model=model,
-                google_api_key=google_key,
-            )
-        else:
-            if config.is_cloud_environment():
-                raise ValueError(
-                    "Running in cloud, but neither GROQ_API_KEY nor GOOGLE_API_KEY is configured! "
-                    "Local Ollama is not available in cloud environments. Please enter your API Key."
-                )
-            from langchain_ollama import ChatOllama
-            model = llm_model or config.OLLAMA_LLM_MODEL
-            url = base_url or config.OLLAMA_BASE_URL
-            logger.info(f"Using Ollama LLM: {model} at {url}")
-            self.llm = ChatOllama(
-                model=model,
-                base_url=url,
-                temperature=temperature,
-            )
+            llm_kwargs: Dict[str, Any] = {
+                "model": model,
+                "google_api_key": google_key,
+                "temperature": temperature,
+            }
+            self.llm = ChatGoogleGenerativeAI(**llm_kwargs)
 
         self.prompt = ChatPromptTemplate.from_messages([
             ("system", SYSTEM_PROMPT),
