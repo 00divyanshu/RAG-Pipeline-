@@ -68,8 +68,8 @@ from src.security import (
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Knowledge Copilot",
-    page_icon="⚡",
+    page_title="AI Assistant",
+    page_icon="✨",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -91,66 +91,146 @@ if "current_session_id" not in st.session_state:
     st.session_state.current_session_id = None
 if "guest_messages" not in st.session_state:
     st.session_state.guest_messages = []
-if "show_auth_modal_trigger" not in st.session_state:
-    st.session_state.show_auth_modal_trigger = False
-if "auth_modal_tab" not in st.session_state:
-    st.session_state.auth_modal_tab = 0
 
 def apply_app_theme(theme_choice: str):
-    """Applies dynamic Dark, Light, or Device/System CSS styling across all components."""
+    """
+    Applies dynamic Dark, Light, or Device/System CSS styling across all components.
+    Ensures complete text inversion (solid black in Light mode, crisp white in Dark mode)
+    and removes GitHub codebase exposure.
+    """
+    # 1. Privacy & GitHub codebase link elimination
+    privacy_css = """
+    <style>
+        /* Completely hide Streamlit Header, GitHub button, and Deploy menu */
+        header[data-testid="stHeader"] {
+            display: none !important;
+            visibility: hidden !important;
+            height: 0 !important;
+        }
+        div[data-testid="stToolbar"] {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        #MainMenu {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        footer {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        .stDeployButton {
+            display: none !important;
+            visibility: hidden !important;
+        }
+        a[href*="github.com"] {
+            display: none !important;
+            visibility: hidden !important;
+        }
+    </style>
+    """
+
+    # 2. Theme definitions
     if theme_choice == "light":
         theme_css = """
         <style>
             :root {
-                --app-bg: #f8fafc;
-                --app-card-bg: #ffffff;
-                --app-text: #0f172a;
-                --app-text-muted: #64748b;
-                --app-border: #e2e8f0;
-                --app-accent: #059669;
-                --app-sidebar-bg: #f1f5f9;
-                --app-chat-user: #e0f2fe;
-                --app-chat-bot: #f8fafc;
+                --gemini-bg: radial-gradient(circle at 50% 30%, #eef4ff 0%, #f4f7fc 50%, #ffffff 100%);
+                --gemini-surface: #ffffff;
+                --gemini-sidebar: #f0f4f9;
+                --gemini-text-main: #1f1f1f;
+                --gemini-text-sub: #444746;
+                --gemini-border: #dfe3e7;
+                --gemini-pill: #e9eef6;
+                --gemini-accent: #0b57d0;
             }
             .stApp {
-                background-color: var(--app-bg) !important;
-                color: var(--app-text) !important;
+                background: var(--gemini-bg) !important;
+                color: #1f1f1f !important;
+            }
+            .stApp * {
+                color: #1f1f1f !important;
             }
             section[data-testid="stSidebar"] {
-                background-color: var(--app-sidebar-bg) !important;
-                border-right: 1px solid var(--app-border) !important;
+                background-color: #f0f4f9 !important;
+                border-right: 1px solid #dfe3e7 !important;
+            }
+            section[data-testid="stSidebar"] * {
+                color: #1f1f1f !important;
             }
             .stChatMessage {
-                background-color: var(--app-card-bg) !important;
-                border: 1px solid var(--app-border) !important;
-                border-radius: 14px;
-                margin-bottom: 12px;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                background-color: #ffffff !important;
+                border: 1px solid #dfe3e7 !important;
+                border-radius: 18px;
+                color: #1f1f1f !important;
+                box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+            }
+            .stChatMessage * {
+                color: #1f1f1f !important;
             }
             .citation-card {
                 background-color: #f1f5f9 !important;
-                border-left: 3px solid #059669 !important;
+                border-left: 3px solid #0b57d0 !important;
                 color: #1e293b !important;
                 padding: 10px 14px;
                 margin-top: 8px;
                 border-radius: 8px;
                 font-size: 0.88em;
             }
-            .hero-card {
-                background: #ffffff !important;
-                border: 1px solid #e2e8f0 !important;
-                color: #0f172a !important;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.04);
+            .citation-card * {
+                color: #1e293b !important;
             }
-            .suggestion-card {
-                background: #ffffff !important;
-                border: 1px solid #e2e8f0 !important;
-                color: #334155 !important;
-                transition: transform 0.15s ease, box-shadow 0.15s ease;
+            .gemini-hero-title {
+                color: #1f1f1f !important;
+                font-weight: 500;
+                font-size: 2.3rem;
+                letter-spacing: -0.02em;
+                margin-top: 0.5rem;
+                margin-bottom: 0.4rem;
             }
-            .suggestion-card:hover {
-                transform: translateY(-2px);
-                box-shadow: 0 4px 10px rgba(0,0,0,0.06);
+            .gemini-hero-sub {
+                color: #444746 !important;
+                font-size: 1.05rem;
+            }
+            .gemini-suggestion-item {
+                background: #ffffff !important;
+                border: 1px solid #e0e4eb !important;
+                border-radius: 16px;
+                padding: 12px 18px;
+                margin-bottom: 8px;
+                color: #1f1f1f !important;
+                transition: background 0.15s ease, transform 0.15s ease;
+                box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+            }
+            .gemini-suggestion-item * {
+                color: #1f1f1f !important;
+            }
+            .gemini-suggestion-item:hover {
+                background: #f1f5f9 !important;
+                transform: translateX(3px);
+            }
+            .sidebar-pill-active {
+                background: #dfe3e7 !important;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-weight: 600;
+                color: #1f1f1f !important;
+            }
+            .user-profile-card {
+                background: #ffffff;
+                border: 1px solid #dfe3e7;
+                border-radius: 24px;
+                padding: 8px 14px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
+            }
+            .user-profile-card * {
+                color: #1f1f1f !important;
+            }
+            div[data-baseweb="input"] input {
+                color: #1f1f1f !important;
+                background-color: #ffffff !important;
             }
         </style>
         """
@@ -158,54 +238,79 @@ def apply_app_theme(theme_choice: str):
         theme_css = """
         <style>
             :root {
-                --app-bg: #0e1117;
-                --app-card-bg: #161b22;
-                --app-text: #f0f6fc;
-                --app-text-muted: #8b949e;
-                --app-border: #30363d;
-                --app-accent: #10b981;
-                --app-sidebar-bg: #131720;
-                --app-chat-user: #1f2937;
-                --app-chat-bot: #161b22;
+                --gemini-bg: radial-gradient(circle at 50% 30%, #17243c 0%, #0d121c 55%, #07090e 100%);
+                --gemini-surface: #1e1f20;
+                --gemini-sidebar: #131314;
+                --gemini-text-main: #f0f4f9;
+                --gemini-text-sub: #c4c7c5;
+                --gemini-border: #37393b;
+                --gemini-pill: #282a2c;
+                --gemini-accent: #a8c7fa;
             }
             .stApp {
-                background-color: var(--app-bg) !important;
-                color: var(--app-text) !important;
+                background: var(--gemini-bg) !important;
+                color: #f0f4f9 !important;
             }
             section[data-testid="stSidebar"] {
-                background-color: var(--app-sidebar-bg) !important;
-                border-right: 1px solid var(--app-border) !important;
+                background-color: #131314 !important;
+                border-right: 1px solid #282a2c !important;
             }
             .stChatMessage {
-                background-color: var(--app-card-bg) !important;
-                border: 1px solid var(--app-border) !important;
-                border-radius: 14px;
-                margin-bottom: 12px;
-                box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+                background-color: #1e1f20 !important;
+                border: 1px solid #282a2c !important;
+                border-radius: 18px;
+                color: #f0f4f9 !important;
+                box-shadow: 0 1px 4px rgba(0,0,0,0.3);
             }
             .citation-card {
                 background-color: rgba(255, 255, 255, 0.04) !important;
-                border-left: 3px solid #10b981 !important;
+                border-left: 3px solid #a8c7fa !important;
                 color: #e2e8f0 !important;
                 padding: 10px 14px;
                 margin-top: 8px;
                 border-radius: 8px;
                 font-size: 0.88em;
             }
-            .hero-card {
+            .gemini-hero-title {
+                color: #f0f4f9 !important;
+                font-weight: 500;
+                font-size: 2.3rem;
+                letter-spacing: -0.02em;
+                margin-top: 0.5rem;
+                margin-bottom: 0.4rem;
+            }
+            .gemini-hero-sub {
+                color: #c4c7c5 !important;
+                font-size: 1.05rem;
+            }
+            .gemini-suggestion-item {
                 background: rgba(255, 255, 255, 0.03) !important;
                 border: 1px solid rgba(255, 255, 255, 0.08) !important;
-                color: #f0f6fc !important;
+                border-radius: 16px;
+                padding: 12px 18px;
+                margin-bottom: 8px;
+                color: #e3e3e3 !important;
+                transition: background 0.15s ease, transform 0.15s ease;
             }
-            .suggestion-card {
-                background: rgba(255, 255, 255, 0.03) !important;
-                border: 1px solid rgba(255, 255, 255, 0.08) !important;
-                color: #cbd5e1 !important;
-                transition: transform 0.15s ease, background 0.15s ease;
+            .gemini-suggestion-item:hover {
+                background: rgba(255, 255, 255, 0.07) !important;
+                transform: translateX(3px);
             }
-            .suggestion-card:hover {
-                transform: translateY(-2px);
-                background: rgba(255, 255, 255, 0.06) !important;
+            .sidebar-pill-active {
+                background: #282a2c !important;
+                border-radius: 20px;
+                padding: 8px 16px;
+                font-weight: 600;
+                color: #f0f4f9 !important;
+            }
+            .user-profile-card {
+                background: #1e1f20;
+                border: 1px solid #37393b;
+                border-radius: 24px;
+                padding: 8px 14px;
+                display: flex;
+                align-items: center;
+                gap: 10px;
             }
         </style>
         """
@@ -214,48 +319,39 @@ def apply_app_theme(theme_choice: str):
         theme_css = """
         <style>
             @media (prefers-color-scheme: light) {
-                :root {
-                    --app-bg: #f8fafc;
-                    --app-card-bg: #ffffff;
-                    --app-text: #0f172a;
-                    --app-text-muted: #64748b;
-                    --app-border: #e2e8f0;
-                    --app-accent: #059669;
-                    --app-sidebar-bg: #f1f5f9;
-                }
-                .stApp { background-color: #f8fafc !important; color: #0f172a !important; }
-                section[data-testid="stSidebar"] { background-color: #f1f5f9 !important; border-right: 1px solid #e2e8f0 !important; }
-                .stChatMessage { background-color: #ffffff !important; border: 1px solid #e2e8f0 !important; }
-                .citation-card { background-color: #f1f5f9 !important; border-left: 3px solid #059669 !important; color: #1e293b !important; }
-                .suggestion-card { background: #ffffff !important; border: 1px solid #e2e8f0 !important; color: #334155 !important; }
+                .stApp { background: radial-gradient(circle at 50% 30%, #eef4ff 0%, #f4f7fc 50%, #ffffff 100%) !important; color: #1f1f1f !important; }
+                .stApp * { color: #1f1f1f !important; }
+                section[data-testid="stSidebar"] { background-color: #f0f4f9 !important; border-right: 1px solid #dfe3e7 !important; }
+                section[data-testid="stSidebar"] * { color: #1f1f1f !important; }
+                .stChatMessage { background-color: #ffffff !important; border: 1px solid #dfe3e7 !important; color: #1f1f1f !important; }
+                .stChatMessage * { color: #1f1f1f !important; }
+                .citation-card { background-color: #f1f5f9 !important; border-left: 3px solid #0b57d0 !important; color: #1e293b !important; }
+                .citation-card * { color: #1e293b !important; }
+                .gemini-hero-title { color: #1f1f1f !important; }
+                .gemini-hero-sub { color: #444746 !important; }
+                .gemini-suggestion-item { background: #ffffff !important; border: 1px solid #e0e4eb !important; color: #1f1f1f !important; }
+                .gemini-suggestion-item * { color: #1f1f1f !important; }
             }
             @media (prefers-color-scheme: dark) {
-                :root {
-                    --app-bg: #0e1117;
-                    --app-card-bg: #161b22;
-                    --app-text: #f0f6fc;
-                    --app-text-muted: #8b949e;
-                    --app-border: #30363d;
-                    --app-accent: #10b981;
-                    --app-sidebar-bg: #131720;
-                }
-                .stApp { background-color: #0e1117 !important; color: #f0f6fc !important; }
-                section[data-testid="stSidebar"] { background-color: #131720 !important; border-right: 1px solid #30363d !important; }
-                .stChatMessage { background-color: #161b22 !important; border: 1px solid #30363d !important; }
-                .citation-card { background-color: rgba(255, 255, 255, 0.04) !important; border-left: 3px solid #10b981 !important; color: #e2e8f0 !important; }
-                .suggestion-card { background: rgba(255, 255, 255, 0.03) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: #cbd5e1 !important; }
+                .stApp { background: radial-gradient(circle at 50% 30%, #17243c 0%, #0d121c 55%, #07090e 100%) !important; color: #f0f4f9 !important; }
+                section[data-testid="stSidebar"] { background-color: #131314 !important; border-right: 1px solid #282a2c !important; }
+                .stChatMessage { background-color: #1e1f20 !important; border: 1px solid #282a2c !important; color: #f0f4f9 !important; }
+                .citation-card { background-color: rgba(255, 255, 255, 0.04) !important; border-left: 3px solid #a8c7fa !important; color: #e2e8f0 !important; }
+                .gemini-hero-title { color: #f0f4f9 !important; }
+                .gemini-hero-sub { color: #c4c7c5 !important; }
+                .gemini-suggestion-item { background: rgba(255, 255, 255, 0.03) !important; border: 1px solid rgba(255, 255, 255, 0.08) !important; color: #e3e3e3 !important; }
             }
         </style>
         """
 
-    base_css = """
+    base_elements = """
     <style>
         .badge {
             display: inline-block;
             padding: 3px 9px;
             border-radius: 12px;
-            background: linear-gradient(135deg, #059669, #10b981);
-            color: white;
+            background: linear-gradient(135deg, #4E95FF, #9E7AFF);
+            color: white !important;
             font-size: 0.75em;
             font-weight: 600;
             margin-bottom: 6px;
@@ -263,7 +359,7 @@ def apply_app_theme(theme_choice: str):
         .admin-card {
             background: rgba(255, 255, 255, 0.03);
             border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 12px;
+            border-radius: 14px;
             padding: 16px;
             text-align: center;
             margin-bottom: 10px;
@@ -271,28 +367,29 @@ def apply_app_theme(theme_choice: str):
         .admin-stat {
             font-size: 2.2em;
             font-weight: 800;
-            color: #34d399;
+            color: #4E95FF;
         }
-        .user-pill {
+        .gemini-hero-container {
+            text-align: center;
+            margin: 3.5rem auto 2rem auto;
+            max-width: 680px;
+        }
+        .avatar-circle {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #4E95FF, #F576A4);
             display: flex;
             align-items: center;
-            gap: 8px;
-            padding: 8px 12px;
-            border-radius: 10px;
-            background: rgba(255, 255, 255, 0.04);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            margin-bottom: 10px;
-        }
-        .suggestion-card {
-            padding: 14px 16px;
-            border-radius: 12px;
-            cursor: pointer;
-            text-align: left;
-            margin-bottom: 10px;
+            justify-content: center;
+            font-size: 0.85em;
+            font-weight: 700;
+            color: white !important;
+            flex-shrink: 0;
         }
     </style>
     """
-    st.markdown(theme_css + base_css, unsafe_allow_html=True)
+    st.markdown(privacy_css + theme_css + base_elements, unsafe_allow_html=True)
 
 apply_app_theme(st.session_state.app_theme)
 
@@ -320,14 +417,30 @@ def get_user_rag_pipeline(user_namespace: str):
         )
         return None, None
 
+def get_gemini_sparkle_svg(size: int = 32) -> str:
+    """Returns the SVG string for the 4-point gradient sparkle."""
+    return f"""
+    <svg width="{size}" height="{size}" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 0C12 6.627 6.627 12 0 12C6.627 12 12 17.373 12 24C12 17.373 17.373 12 24 12C17.373 12 12 6.627 12 0Z" fill="url(#sparkle_gradient)"/>
+        <defs>
+            <linearGradient id="sparkle_gradient" x1="0" y1="0" x2="24" y2="24" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#4E95FF"/>
+                <stop offset="0.33" stop-color="#9E7AFF"/>
+                <stop offset="0.66" stop-color="#F576A4"/>
+                <stop offset="1" stop-color="#FF9B54"/>
+            </linearGradient>
+        </defs>
+    </svg>
+    """
+
 @st.dialog("🔐 Sign In / Create Account")
 def show_auth_modal(initial_tab: int = 0):
-    """Displays a modern ChatGPT-style modal dialog for Sign In and Account Creation."""
+    """Displays in-page modal dialog for Sign In and Account Creation without screen disruption."""
     tab_login, tab_register = st.tabs(["🔐 Sign In", "✨ Create Account"])
 
     with tab_login:
-        st.markdown("#### Access Your Personal Workspace")
-        st.caption("Sign in to access your persistent chat history and private document vault.")
+        st.markdown("#### Access Your Workspace")
+        st.caption("Sign in to query private documents, save conversation history, and access your vault.")
         with st.form("modal_login_form"):
             login_username = st.text_input("Username", placeholder="Enter username")
             login_password = st.text_input("Password", type="password", placeholder="Enter password")
@@ -395,7 +508,7 @@ def show_auth_modal(initial_tab: int = 0):
                             add_chat_message(
                                 sid,
                                 "assistant",
-                                f"Welcome @{new_user['username']}! 🥑 I am your AI Knowledge Assistant. Attach documents below to begin querying your data.",
+                                f"Welcome @{new_user['username']}! ✨ I am your AI Assistant. Attach documents below to begin querying your data.",
                                 [],
                             )
                             st.session_state.current_session_id = sid
@@ -417,28 +530,28 @@ def render_admin_suite(user: Dict[str, Any]):
     with kpi1:
         st.markdown(f"""
         <div class="admin-card">
-            <div style="color: #94a3b8; font-size: 0.85em; text-transform: uppercase;">Total Users</div>
+            <div style="font-size: 0.85em; text-transform: uppercase;">Total Users</div>
             <div class="admin-stat">{stats['total_users']}</div>
         </div>
         """, unsafe_allow_html=True)
     with kpi2:
         st.markdown(f"""
         <div class="admin-card">
-            <div style="color: #94a3b8; font-size: 0.85em; text-transform: uppercase;">Indexed Documents</div>
+            <div style="font-size: 0.85em; text-transform: uppercase;">Indexed Documents</div>
             <div class="admin-stat">{stats['total_docs']}</div>
         </div>
         """, unsafe_allow_html=True)
     with kpi3:
         st.markdown(f"""
         <div class="admin-card">
-            <div style="color: #94a3b8; font-size: 0.85em; text-transform: uppercase;">Chat Sessions</div>
+            <div style="font-size: 0.85em; text-transform: uppercase;">Chat Sessions</div>
             <div class="admin-stat">{stats['total_chats']}</div>
         </div>
         """, unsafe_allow_html=True)
     with kpi4:
         st.markdown(f"""
         <div class="admin-card">
-            <div style="color: #94a3b8; font-size: 0.85em; text-transform: uppercase;">Messages Exchanged</div>
+            <div style="font-size: 0.85em; text-transform: uppercase;">Messages Exchanged</div>
             <div class="admin-stat">{stats['total_messages']}</div>
         </div>
         """, unsafe_allow_html=True)
@@ -622,7 +735,7 @@ def main():
             add_chat_message(
                 init_sid,
                 "assistant",
-                f"Hello @{username}! 🥑 I am your AI Knowledge Assistant. Upload PDF, Word, CSV, or Text files below to ask questions with source citations.",
+                f"Hello @{username}! ✨ I am your AI Assistant. What can I help you explore today?",
                 [],
             )
             st.session_state.current_session_id = init_sid
@@ -633,28 +746,35 @@ def main():
     active_session_id = st.session_state.current_session_id
 
     # =========================================================================
-    # SIDEBAR: Small Navigation Icons, History, Documents & Bottom Settings
+    # SIDEBAR: Google Gemini-style Layout (Sparkle, Chat/Spark pills, Actions, Recents, User)
     # =========================================================================
     with st.sidebar:
-        # App brand header
-        st.markdown("""
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
-            <span style="font-size: 1.8rem;">⚡</span>
-            <div>
-                <div style="font-weight: 800; font-size: 1.15rem; line-height: 1.2;">AI Copilot</div>
-                <div style="font-size: 0.72rem; color: #888;">Multi-Tenant Knowledge Vault</div>
-            </div>
+        # Top Header: Sparkle Logo + Brand Name
+        sparkle_svg = get_gemini_sparkle_svg(26)
+        st.markdown(f"""
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.8rem; padding: 4px 0;">
+            {sparkle_svg}
+            <div style="font-weight: 600; font-size: 1.25rem; letter-spacing: -0.01em;">AI Assistant</div>
         </div>
         """, unsafe_allow_html=True)
 
-        # ➕ New Chat Button
-        if st.button("➕ New Chat", use_container_width=True, type="secondary"):
+        # Mode Pills: [ Chat ] [ Spark BETA ] (matching Gemini screenshot)
+        col_m1, col_m2 = st.columns(2)
+        with col_m1:
+            st.button("💬 Chat", use_container_width=True, key="mode_chat_pill", type="primary")
+        with col_m2:
+            st.button("✨ Spark BETA", use_container_width=True, key="mode_spark_pill", type="secondary")
+
+        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
+
+        # ✏️ New chat button (highlighted active pill)
+        if st.button("✏️ New chat", use_container_width=True, type="secondary"):
             if is_authenticated:
                 new_sid = create_chat_session(user_id, "New Chat")
                 add_chat_message(
                     new_sid,
                     "assistant",
-                    f"Fresh conversation started! What would you like to explore in your documents, @{username}? 🥑",
+                    f"Fresh conversation started! What would you like to explore in your documents, @{username}? ✨",
                     [],
                 )
                 st.session_state.current_session_id = new_sid
@@ -662,38 +782,10 @@ def main():
                 st.session_state.guest_messages = []
             st.rerun()
 
-        st.markdown("<div style='margin-top: 10px;'></div>", unsafe_allow_html=True)
-
-        # 💬 Chat History Drawer
-        with st.expander("💬 Chat History", expanded=True):
-            if is_authenticated and user_sessions:
-                for s in user_sessions[:12]:
-                    c_sess, c_del = st.columns([5, 1])
-                    is_active = (s["id"] == active_session_id)
-                    title = s["title"]
-                    if len(title) > 20:
-                        title = title[:18] + "..."
-                    icon_prefix = "👉 " if is_active else "💬 "
-                    with c_sess:
-                        if st.button(f"{icon_prefix}{title}", key=f"session_btn_{s['id']}", use_container_width=True):
-                            st.session_state.current_session_id = s["id"]
-                            st.rerun()
-                    with c_del:
-                        if st.button("🗑️", key=f"session_del_{s['id']}", help="Delete chat thread"):
-                            delete_chat_session(s["id"], user_id)
-                            if st.session_state.current_session_id == s["id"]:
-                                st.session_state.current_session_id = None
-                            st.rerun()
-            elif is_authenticated:
-                st.caption("No conversations yet. Start chatting!")
-            else:
-                st.caption("💡 Sign in to save and access previous chats across devices.")
-
-        # 📂 Document Vault Drawer (Read & Delete)
+        # 📂 Document Vault (collapsible drawer)
         with st.expander("📂 Document Vault", expanded=False):
             if is_authenticated:
                 user_docs = get_user_documents(user_id)
-                # Sync local disk docs if needed
                 supported_files = [f for f in user_docs_dir.iterdir() if f.is_file() and f.suffix.lower() in SUPPORTED_EXTENSIONS]
                 if not user_docs and supported_files:
                     _, vector_store_inst = get_user_rag_pipeline(user_namespace)
@@ -728,42 +820,60 @@ def main():
                                     st.rerun()
                                 except Exception as del_err:
                                     st.error(f"Error removing: {del_err}")
-                        st.markdown("<hr style='margin: 4px 0 8px 0; border: none; border-top: 1px solid rgba(255,255,255,0.06);'/>", unsafe_allow_html=True)
+                        st.markdown("<hr style='margin: 4px 0 6px 0; border: none; border-top: 1px solid rgba(128,128,128,0.15);'/>", unsafe_allow_html=True)
                 else:
                     st.info("Vault is empty. Attach documents using '+' on the main screen.")
             else:
                 st.caption("💡 Sign in to view and manage your uploaded files.")
 
+        st.markdown("<div style='margin-top: 12px;'></div>", unsafe_allow_html=True)
+
+        # Recent Chats Section (matching Gemini screenshot)
+        st.markdown("<div style='font-size: 0.82rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px;'>Recent</div>", unsafe_allow_html=True)
+        if is_authenticated and user_sessions:
+            for s in user_sessions[:12]:
+                c_sess, c_del = st.columns([5, 1])
+                is_active = (s["id"] == active_session_id)
+                title = s["title"]
+                if len(title) > 20:
+                    title = title[:18] + "..."
+                icon_prefix = "👉 " if is_active else ""
+                with c_sess:
+                    if st.button(f"{icon_prefix}{title}", key=f"session_btn_{s['id']}", use_container_width=True):
+                        st.session_state.current_session_id = s["id"]
+                        st.rerun()
+                with c_del:
+                    if st.button("🗑️", key=f"session_del_{s['id']}", help="Delete chat thread"):
+                        delete_chat_session(s["id"], user_id)
+                        if st.session_state.current_session_id == s["id"]:
+                            st.session_state.current_session_id = None
+                        st.rerun()
+        elif is_authenticated:
+            st.caption("No previous chats. Start a new conversation!")
+        else:
+            st.caption("💡 Sign in to save and access previous chats across devices.")
+
         st.markdown("---")
 
-        # ⚙️ Bottom Left Settings Menu
+        # Bottom Profile Bar (matching Gemini screenshot: circular avatar + name + settings)
         active_view = "workspace"
-        with st.expander("⚙️ Settings & Account", expanded=False):
-            # User profile info
-            if is_authenticated:
-                role_label = "👑 Master Admin" if is_admin else "⚡ Pro User"
-                st.markdown(f"""
-                <div class="user-pill">
-                    <span style="font-size: 1.3em;">🥑</span>
-                    <div>
-                        <div style="font-weight: 700; font-size: 0.9em; color: #10b981;">@{username}</div>
-                        <div style="font-size: 0.72em; color: #888;">{role_label}</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
-            else:
-                st.markdown("""
-                <div class="user-pill">
-                    <span style="font-size: 1.3em;">👤</span>
-                    <div>
-                        <div style="font-weight: 700; font-size: 0.9em; color: #888;">Guest User</div>
-                        <div style="font-size: 0.72em; color: #666;">Preview Mode</div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+        initial_letter = username[:1].upper() if username else "G"
+        role_label = "Pro" if is_authenticated else "Guest"
+        if is_admin:
+            role_label = "Master Admin"
 
-            # Theme Switcher Option (Dark, Light, Device)
-            st.markdown("**Theme Preference**")
+        st.markdown(f"""
+        <div class="user-profile-card">
+            <div class="avatar-circle">{initial_letter}</div>
+            <div style="flex-grow: 1; min-width: 0;">
+                <div style="font-weight: 600; font-size: 0.95rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">{username}</div>
+                <div style="font-size: 0.75rem; opacity: 0.7;">{role_label}</div>
+            </div>
+        </div>
+        """, unsafe_allow_html=True)
+
+        with st.expander("⚙️ Settings & Preferences", expanded=False):
+            st.markdown("**Theme Mode**")
             theme_keys = {"🌙 Dark": "dark", "☀️ Light": "light", "💻 Device / System": "system"}
             current_theme_index = 0 if st.session_state.app_theme == "dark" else (1 if st.session_state.app_theme == "light" else 2)
             theme_choice = st.radio(
@@ -816,35 +926,30 @@ def main():
                     show_auth_modal(0)
 
     # =========================================================================
-    # MAIN CANVAS: Header, Guest/User Chat, '+' Document Attachment & Input Bar
+    # MAIN CANVAS: Google Gemini Experience
     # =========================================================================
     if active_view == "admin" and is_authenticated:
         render_admin_suite(user)
         return
 
-    # Top Header Bar with Sign In / Sign Up on the right
-    col_header, col_top_auth = st.columns([3, 1])
-    with col_header:
-        st.markdown("<h2 style='margin: 0; padding: 0;'>⚡ AI Knowledge Copilot</h2>", unsafe_allow_html=True)
-        if is_authenticated:
-            st.caption(f"Workspace: `@{username}` | Active Vault: `{user_namespace}` | Grounded Multi-Doc Citations")
-        else:
-            st.caption("Cloud Multi-Tenant RAG | Neural Memory & Isolated Knowledge Vaults")
-    with col_top_auth:
-        if not is_authenticated:
-            col_b1, col_b2 = st.columns(2)
-            with col_b1:
+    # Check conversation messages
+    messages: List[Dict[str, Any]] = []
+    if is_authenticated and active_session_id:
+        messages = get_session_messages(active_session_id)
+    elif not is_authenticated:
+        messages = st.session_state.guest_messages
+
+    # Top right Auth status if Guest
+    if not is_authenticated:
+        top_c1, top_c2 = st.columns([5, 2])
+        with top_c2:
+            sb1, sb2 = st.columns(2)
+            with sb1:
                 if st.button("Sign In", type="primary", use_container_width=True):
                     show_auth_modal(0)
-            with col_b2:
+            with sb2:
                 if st.button("Sign Up", type="secondary", use_container_width=True):
                     show_auth_modal(1)
-        else:
-            st.markdown(f"""
-            <div style="text-align: right; padding-top: 6px;">
-                <span class="badge">🟢 @{username}</span>
-            </div>
-            """, unsafe_allow_html=True)
 
     # Host Alert Banner for Admin
     if is_admin:
@@ -857,56 +962,63 @@ def main():
 
     pipeline, vector_store = get_user_rag_pipeline(user_namespace)
 
-    # Check if empty state should be rendered
-    messages: List[Dict[str, Any]] = []
-    if is_authenticated and active_session_id:
-        messages = get_session_messages(active_session_id)
-    elif not is_authenticated:
-        messages = st.session_state.guest_messages
-
-    # ChatGPT-style Welcome Hero for Fresh/Empty Chats
+    # =========================================================================
+    # HERO CANVAS: "Where should we start?" vs "Sign in or Sign up to get started"
+    # =========================================================================
     if not messages:
-        st.markdown("""
-        <div style="text-align: center; margin: 3rem auto 2rem auto; max-width: 650px;">
-            <div style="font-size: 3.2rem; margin-bottom: 0.5rem;">🥑</div>
-            <h2 style="font-weight: 800; font-size: 2.1rem; margin-bottom: 0.5rem;">What would you like to explore today?</h2>
-            <p style="color: #888; font-size: 1.05rem;">
-                Upload PDF, Word DOCX, CSV, or Text documents to synthesize grounded answers with zero hallucinations and verified source citations.
-            </p>
-        </div>
-        """, unsafe_allow_html=True)
+        hero_sparkle = get_gemini_sparkle_svg(36)
+        if is_authenticated:
+            st.markdown(f"""
+            <div class="gemini-hero-container">
+                <div>{hero_sparkle}</div>
+                <h1 class="gemini-hero-title">Where should we start?</h1>
+                <p class="gemini-hero-sub">Ask questions about your uploaded documents or explore insights.</p>
+            </div>
+            """, unsafe_allow_html=True)
+        else:
+            st.markdown(f"""
+            <div class="gemini-hero-container">
+                <div>{hero_sparkle}</div>
+                <h1 class="gemini-hero-title">Sign in or Sign up to get started</h1>
+                <p class="gemini-hero-sub">Sign in to query private documents, save conversation history, and access your vault.</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-        sc1, sc2 = st.columns(2)
-        with sc1:
-            st.markdown("""
-            <div class="suggestion-card">
-                <strong>📄 Summarize Key Insights</strong><br>
-                <small style="color: #888;">Extract high-level executive summaries and action items from reports.</small>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown("""
-            <div class="suggestion-card">
-                <strong>📊 Analyze Table & CSV Metrics</strong><br>
-                <small style="color: #888;">Calculate totals, department budgets, and tabular figures.</small>
-            </div>
-            """, unsafe_allow_html=True)
-        with sc2:
-            st.markdown("""
-            <div class="suggestion-card">
-                <strong>🔍 Policy & Compliance Search</strong><br>
-                <small style="color: #888;">Find specific clauses, coverage terms, and legal requirements.</small>
-            </div>
-            """, unsafe_allow_html=True)
-            st.markdown("""
-            <div class="suggestion-card">
-                <strong>💡 Cross-Document Synthesis</strong><br>
-                <small style="color: #888;">Connect concepts and compare data points across your entire vault.</small>
-            </div>
-            """, unsafe_allow_html=True)
+            col_act1, col_act2, col_act3 = st.columns([1, 2, 1])
+            with col_act2:
+                btn_in, btn_up = st.columns(2)
+                with btn_in:
+                    if st.button("🔐 Sign In", type="primary", use_container_width=True):
+                        show_auth_modal(0)
+                with btn_up:
+                    if st.button("✨ Create Account", type="secondary", use_container_width=True):
+                        show_auth_modal(1)
+
+        # Gemini-style action suggestions (matching screenshot)
+        st.markdown("<div style='max-width: 650px; margin: 1.5rem auto 1rem auto;'>", unsafe_allow_html=True)
+
+        suggestions = [
+            ("📄", "Create a structured summary from uploaded documents"),
+            ("📊", "Analyze tabular data, CSVs, and department figures"),
+            ("↳", "Find exact policy clauses and verified citations"),
+            ("↳", "Reset my focus in 5 minutes"),
+        ]
+
+        for icon, text in suggestions:
+            if st.button(f"{icon}  {text}", key=f"sug_{text[:15]}", use_container_width=True):
+                if not is_authenticated:
+                    show_auth_modal(0)
+                else:
+                    # Ingest suggestion as initial query
+                    assert active_session_id is not None
+                    add_chat_message(active_session_id, "user", text)
+                    st.rerun()
+
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # Render Conversation Messages
     for msg in messages:
-        avatar = "👤" if msg["role"] == "user" else "🥑"
+        avatar = "👤" if msg["role"] == "user" else "✨"
         with st.chat_message(msg["role"], avatar=avatar):
             st.markdown(msg["content"])
             if msg.get("citations"):
@@ -927,13 +1039,13 @@ def main():
     # =========================================================================
     # MAIN SCREEN: '+' Document Attachment & Ingestion Section
     # =========================================================================
-    with st.expander("📎 / ➕ Attach Documents to Vault (PDF, Word DOCX, CSV, TXT, Markdown)", expanded=False):
-        st.caption("Upload documents to index into your isolated knowledge vault. Supported: `.pdf`, `.docx`, `.csv`, `.txt`, `.md`")
+    with st.expander("📎 / ➕ Attach Documents (PDF, Word DOCX, CSV, TXT, Markdown)", expanded=False):
+        st.caption("Upload documents to index into your private vault. Supported: `.pdf`, `.docx`, `.csv`, `.txt`, `.md`")
         uploaded_files = st.file_uploader(
             "Select files",
             type=["pdf", "docx", "csv", "txt", "md"],
             accept_multiple_files=True,
-            key="main_screen_doc_uploader",
+            key="gemini_doc_uploader",
             label_visibility="collapsed",
         )
 
@@ -1018,7 +1130,8 @@ def main():
     # =========================================================================
     # CHAT PROMPT INPUT BAR & QUERY PROCESSING
     # =========================================================================
-    if user_query := st.chat_input("Ask a question about your documents..."):
+    # Center placeholder customized per user instructions
+    if user_query := st.chat_input("Ask a question or explore your documents..."):
         if not is_authenticated:
             # Guest mode: prompt to sign in or allow demo
             show_auth_modal(0)
@@ -1037,7 +1150,7 @@ def main():
             with st.chat_message("user", avatar="👤"):
                 st.markdown(user_query)
 
-            with st.chat_message("assistant", avatar="🥑"):
+            with st.chat_message("assistant", avatar="✨"):
                 active_key = config.GROQ_API_KEY if config.LLM_PROVIDER == "groq" else config.GOOGLE_API_KEY
                 if not active_key:
                     err_msg = "⚠️ AI API Key is unconfigured. Please configure API keys in Master Admin Suite or .env."
@@ -1049,7 +1162,7 @@ def main():
                     add_chat_message(active_session_id, "assistant", err_msg)
                 else:
                     try:
-                        # Dynamic Under-The-Hood Status Spinner
+                        # Under-The-Hood Status Spinner
                         with st.status("🔮 Under the Hood Intelligence Engine...", expanded=True) as status_box:
                             st.write(f"🔍 Searching vector space in tenant vault `{user_namespace}`...")
                             context_str, citations, raw_docs = pipeline.retrieve(user_query)
