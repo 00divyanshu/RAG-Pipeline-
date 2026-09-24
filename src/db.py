@@ -1,10 +1,15 @@
 import json
 import logging
 import sqlite3
-from datetime import datetime
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 import bcrypt
+
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
+
 from src import config
 
 logger = logging.getLogger(__name__)
@@ -12,38 +17,39 @@ logger = logging.getLogger(__name__)
 LOCAL_DB_PATH = Path(__file__).resolve().parent.parent / "data" / "local_app.db"
 
 def _is_postgres() -> bool:
+    """Returns True if a postgres connection URL is configured."""
     url = config.DATABASE_URL
     return bool(url and url.startswith("postgres"))
 
 def get_connection():
     """
-    Returns a database connection.
+    Returns a database connection and engine type.
     Connects to Neon Serverless PostgreSQL if configured,
     otherwise falls back to SQLite for offline resilience.
     """
-    if _is_postgres():
+    if _is_postgres() and psycopg2 is not None:
         try:
-            import psycopg2
-            # Clean connection params if needed
             db_url = config.DATABASE_URL
-            # Strip redundant query params if causing issue
             if "channel_binding=" in db_url:
                 db_url = db_url.split("&channel_binding=")[0]
             conn = psycopg2.connect(db_url, sslmode="require")
             return conn, "postgres"
         except Exception as e:
             logger.warning(f"Could not connect to Neon Postgres ({e}); falling back to local SQLite.")
-    
+
     LOCAL_DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(str(LOCAL_DB_PATH))
     conn.execute("PRAGMA foreign_keys = ON;")
     return conn, "sqlite"
 
 def hash_password(password: str) -> str:
+    """Hashes a plaintext password using bcrypt with salt."""
     salt = bcrypt.gensalt()
-    return bcrypt.hashpw(password.encode("utf-8"), salt).decode("utf-8")
+    hashed = bcrypt.hashpw(password.encode("utf-8"), salt)
+    return hashed.decode("utf-8")
 
 def verify_password(password: str, hashed: str) -> bool:
+    """Verifies a plaintext password against a bcrypt hash."""
     try:
         return bcrypt.checkpw(password.encode("utf-8"), hashed.encode("utf-8"))
     except Exception:
@@ -127,8 +133,10 @@ def init_db():
         # Seed Master Admin account (@dmin / @dmin0812)
         admin_user = config.ADMIN_USERNAME
         admin_pass = config.ADMIN_PASSWORD
-        cur.execute("SELECT id FROM users WHERE username = %s" if engine_type == "postgres" else "SELECT id FROM users WHERE username = ?", (admin_user,))
-        if not cur.fetchone():
+        check_query = "SELECT id FROM users WHERE username = %s" if engine_type == "postgres" else "SELECT id FROM users WHERE username = ?"
+        cur.execute(check_query, (admin_user,))
+        admin_row = cur.fetchone()
+        if not admin_row:
             hashed_admin = hash_password(admin_pass)
             if engine_type == "postgres":
                 cur.execute(
@@ -167,16 +175,19 @@ def register_user(username: str, password: str, role: str = "user") -> Tuple[boo
     try:
         phash = hash_password(password)
         query = "INSERT INTO users (username, password_hash, role) VALUES (%s, %s, %s) RETURNING id, username, role" if engine_type == "postgres" else "INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)"
-        
+
         if engine_type == "postgres":
             cur.execute(query, (username, phash, role))
             row = cur.fetchone()
-            user_data = {"id": row[0], "username": row[1], "role": row[2]}
+            if row:
+                user_data = {"id": row[0], "username": row[1], "role": row[2]}
+            else:
+                return False, "Failed to retrieve registered user data.", None
         else:
             cur.execute(query, (username, phash, role))
             user_id = cur.lastrowid
             user_data = {"id": user_id, "username": username, "role": role}
-        
+
         conn.commit()
         return True, "Account registered successfully!", user_data
     except Exception as e:
@@ -199,7 +210,7 @@ def authenticate_user(username: str, password: str) -> Optional[Dict[str, Any]]:
         row = cur.fetchone()
         if not row:
             return None
-        
+
         user_id, uname, phash, role = row[0], row[1], row[2], row[3]
         if verify_password(password, phash):
             return {"id": user_id, "username": uname, "role": role}
@@ -225,13 +236,14 @@ def create_chat_session(user_id: int, title: str = "New Conversation") -> int:
                 "INSERT INTO chat_sessions (user_id, title) VALUES (%s, %s) RETURNING id",
                 (user_id, title),
             )
-            session_id = cur.fetchone()[0]
+            row = cur.fetchone()
+            session_id = int(row[0]) if row else 0
         else:
             cur.execute(
                 "INSERT INTO chat_sessions (user_id, title) VALUES (?, ?)",
                 (user_id, title),
             )
-            session_id = cur.lastrowid
+            session_id = int(cur.lastrowid or 0)
         conn.commit()
         return session_id
     finally:
@@ -305,7 +317,8 @@ def add_chat_message(session_id: int, role: str, content: str, citations: Option
                 "INSERT INTO chat_messages (session_id, role, content, citations) VALUES (%s, %s, %s, %s::jsonb) RETURNING id",
                 (session_id, role, content, cite_json),
             )
-            msg_id = cur.fetchone()[0]
+            row = cur.fetchone()
+            msg_id = int(row[0]) if row else 0
             cur.execute("UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = %s", (session_id,))
         else:
             cite_str = json.dumps(cite_data)
@@ -313,7 +326,7 @@ def add_chat_message(session_id: int, role: str, content: str, citations: Option
                 "INSERT INTO chat_messages (session_id, role, content, citations) VALUES (?, ?, ?, ?)",
                 (session_id, role, content, cite_str),
             )
-            msg_id = cur.lastrowid
+            msg_id = int(cur.lastrowid or 0)
             cur.execute("UPDATE chat_sessions SET updated_at = CURRENT_TIMESTAMP WHERE id = ?", (session_id,))
         conn.commit()
         return msg_id
@@ -422,16 +435,20 @@ def get_admin_platform_stats() -> Dict[str, Any]:
     cur = conn.cursor()
     try:
         cur.execute("SELECT COUNT(*) FROM users")
-        total_users = cur.fetchone()[0]
+        u_row = cur.fetchone()
+        total_users = int(u_row[0]) if u_row else 0
 
         cur.execute("SELECT COUNT(*) FROM user_documents")
-        total_docs = cur.fetchone()[0]
+        d_row = cur.fetchone()
+        total_docs = int(d_row[0]) if d_row else 0
 
         cur.execute("SELECT COUNT(*) FROM chat_sessions")
-        total_chats = cur.fetchone()[0]
+        s_row = cur.fetchone()
+        total_chats = int(s_row[0]) if s_row else 0
 
         cur.execute("SELECT COUNT(*) FROM chat_messages")
-        total_messages = cur.fetchone()[0]
+        m_row = cur.fetchone()
+        total_messages = int(m_row[0]) if m_row else 0
 
         # User activity breakdown
         cur.execute("""
@@ -466,4 +483,3 @@ def get_admin_platform_stats() -> Dict[str, Any]:
     finally:
         cur.close()
         conn.close()
-
