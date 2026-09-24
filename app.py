@@ -123,23 +123,17 @@ div[data-testid="stToolbar"] {
     pointer-events: none !important;
 }
 button[data-testid="stExpandSidebarButton"] {
-    display: flex !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
-    z-index: 99999 !important;
     position: fixed !important;
-    top: 50px !important;
-    left: 8px !important;
-    width: 38px !important;
-    height: 38px !important;
-    cursor: pointer !important;
+    top: -200px !important;
+    left: -200px !important;
     opacity: 0 !important;
+    pointer-events: none !important;
 }
 div[data-testid="stSidebarHeader"] {
     position: relative !important;
     display: flex !important;
     justify-content: flex-end !important;
-    padding: 12px 14px 0 14px !important;
+    padding: 10px 14px 0 14px !important;
     min-height: 40px !important;
 }
 button[data-testid="stSidebarCollapseButton"] {
@@ -153,20 +147,21 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     background: #e0e4eb !important;
 }
 
-/* Collapsed Sidebar Rail - Light Mode */
+/* Collapsed Sidebar Rail - Seamless, Transparent (No solid strip) */
 .collapsed-rail {
     position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
-    width: 52px;
-    background: #f0f4f9;
-    border-right: 1px solid #dfe3e7;
+    width: 48px;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
     display: none;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 0 16px 0;
+    padding: 14px 0 16px 0;
     z-index: 99990;
     box-sizing: border-box;
     user-select: none;
@@ -178,23 +173,36 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     width: 100%;
 }
 .collapsed-rail .rail-item {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 10px;
     cursor: pointer;
-    color: #1f1f1f;
-    margin-bottom: 8px;
-    transition: background 0.15s ease, transform 0.1s ease;
+    color: #374151 !important;
+    margin-bottom: 6px;
+    background: transparent !important;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.collapsed-rail .rail-item svg,
+.collapsed-rail .rail-item svg * {
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    fill: none !important;
 }
 .collapsed-rail .rail-item:hover {
-    background: #dfe3e7;
-    color: #000000;
+    background: rgba(0, 0, 0, 0.08) !important;
+    color: #111827 !important;
+}
+.collapsed-rail .rail-item:hover svg,
+.collapsed-rail .rail-item:hover svg * {
+    stroke: #111827 !important;
 }
 .collapsed-rail .rail-logo {
-    font-size: 1.4rem;
+    font-size: 1.45rem;
     cursor: pointer;
     margin-bottom: 12px;
 }
@@ -204,15 +212,71 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     cursor: pointer;
 }
 .collapsed-rail .rail-avatar {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: linear-gradient(135deg, #059669, #10b981);
-    color: #ffffff;
+    color: #ffffff !important;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 
+/* Zero-Lag Pure CSS Instant Visibility */
+body:has(section[data-testid="stSidebar"][aria-expanded="false"]) .collapsed-rail {
+    display: flex !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) .collapsed-rail {
+    display: none !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="false"]) section.main {
+    margin-left: 0px !important;
+    padding-left: 56px !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) section.main {
+    margin-left: 0px !important;
+    padding-left: 0px !important;
+}
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    border-right: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+div[data-testid="stSidebarCollapsedControl"] {
+    display: none !important;
+}
+
+/* Mobile View: No strip, only top-left logo opener */
+.mobile-logo-opener {
+    display: none;
+    position: fixed;
+    top: 10px;
+    left: 12px;
+    z-index: 99999;
+    cursor: pointer;
+    user-select: none;
+    font-size: 1.6rem;
+    padding: 2px;
+}
+@media (max-width: 768px) {
+    .collapsed-rail {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        width: 0 !important;
+    }
+    body:has(section[data-testid="stSidebar"][aria-expanded="false"]) .mobile-logo-opener {
+        display: flex !important;
+    }
+    body:has(section[data-testid="stSidebar"][aria-expanded="true"]) .mobile-logo-opener {
+        display: none !important;
+    }
+    section.main {
+        margin-left: 0px !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-top: 2rem !important;
+    }
+}
 
 /* Light Theme Variables */
 :root {
@@ -229,14 +293,23 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     background: var(--app-bg) !important;
     color: #1f1f1f !important;
 }
-.stApp * {
+.stApp, 
+.stApp p, 
+.stApp span, 
+.stApp label, 
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+.stMarkdown, 
+div[data-testid="stMarkdownContainer"] > * {
     color: #1f1f1f !important;
 }
 section[data-testid="stSidebar"] {
     background-color: #f0f4f9 !important;
     border-right: 1px solid #dfe3e7 !important;
 }
-section[data-testid="stSidebar"] * {
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] div {
     color: #1f1f1f !important;
 }
 .stChatMessage {
@@ -246,8 +319,11 @@ section[data-testid="stSidebar"] * {
     color: #1f1f1f !important;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06);
 }
-.stChatMessage * {
-    color: #1f1f1f !important;
+div[data-testid="stBottom"] {
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 28%, #ffffff 100%) !important;
+}
+div[data-testid="stBottom"] > div {
+    background: transparent !important;
 }
 .citation-card {
     background-color: #f1f5f9 !important;
@@ -365,23 +441,17 @@ div[data-testid="stToolbar"] {
     pointer-events: none !important;
 }
 button[data-testid="stExpandSidebarButton"] {
-    display: flex !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
-    z-index: 99999 !important;
     position: fixed !important;
-    top: 50px !important;
-    left: 8px !important;
-    width: 38px !important;
-    height: 38px !important;
-    cursor: pointer !important;
+    top: -200px !important;
+    left: -200px !important;
     opacity: 0 !important;
+    pointer-events: none !important;
 }
 div[data-testid="stSidebarHeader"] {
     position: relative !important;
     display: flex !important;
     justify-content: flex-end !important;
-    padding: 12px 14px 0 14px !important;
+    padding: 10px 14px 0 14px !important;
     min-height: 40px !important;
 }
 button[data-testid="stSidebarCollapseButton"] {
@@ -395,20 +465,21 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     background: #282a2c !important;
 }
 
-/* Collapsed Sidebar Rail - Dark Mode */
+/* Collapsed Sidebar Rail - Seamless, Transparent (No solid strip) */
 .collapsed-rail {
     position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
-    width: 52px;
-    background: #131314;
-    border-right: 1px solid #282a2c;
+    width: 48px;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
     display: none;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 0 16px 0;
+    padding: 14px 0 16px 0;
     z-index: 99990;
     box-sizing: border-box;
     user-select: none;
@@ -420,23 +491,36 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     width: 100%;
 }
 .collapsed-rail .rail-item {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 10px;
     cursor: pointer;
-    color: #f0f4f9;
-    margin-bottom: 8px;
-    transition: background 0.15s ease, transform 0.1s ease;
+    color: #d1d5db !important;
+    margin-bottom: 6px;
+    background: transparent !important;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.collapsed-rail .rail-item svg,
+.collapsed-rail .rail-item svg * {
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    fill: none !important;
 }
 .collapsed-rail .rail-item:hover {
-    background: #282a2c;
-    color: #ffffff;
+    background: rgba(255, 255, 255, 0.12) !important;
+    color: #ffffff !important;
+}
+.collapsed-rail .rail-item:hover svg,
+.collapsed-rail .rail-item:hover svg * {
+    stroke: #ffffff !important;
 }
 .collapsed-rail .rail-logo {
-    font-size: 1.4rem;
+    font-size: 1.45rem;
     cursor: pointer;
     margin-bottom: 12px;
 }
@@ -446,15 +530,71 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     cursor: pointer;
 }
 .collapsed-rail .rail-avatar {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: linear-gradient(135deg, #059669, #10b981);
-    color: #ffffff;
+    color: #ffffff !important;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 
+/* Zero-Lag Pure CSS Instant Visibility */
+body:has(section[data-testid="stSidebar"][aria-expanded="false"]) .collapsed-rail {
+    display: flex !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) .collapsed-rail {
+    display: none !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="false"]) section.main {
+    margin-left: 0px !important;
+    padding-left: 56px !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) section.main {
+    margin-left: 0px !important;
+    padding-left: 0px !important;
+}
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    border-right: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+div[data-testid="stSidebarCollapsedControl"] {
+    display: none !important;
+}
+
+/* Mobile View: No strip, only top-left logo opener */
+.mobile-logo-opener {
+    display: none;
+    position: fixed;
+    top: 10px;
+    left: 12px;
+    z-index: 99999;
+    cursor: pointer;
+    user-select: none;
+    font-size: 1.6rem;
+    padding: 2px;
+}
+@media (max-width: 768px) {
+    .collapsed-rail {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        width: 0 !important;
+    }
+    body:has(section[data-testid="stSidebar"][aria-expanded="false"]) .mobile-logo-opener {
+        display: flex !important;
+    }
+    body:has(section[data-testid="stSidebar"][aria-expanded="true"]) .mobile-logo-opener {
+        display: none !important;
+    }
+    section.main {
+        margin-left: 0px !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-top: 2rem !important;
+    }
+}
 
 /* Dark Theme Variables */
 :root {
@@ -471,9 +611,24 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     background: var(--app-bg) !important;
     color: #f0f4f9 !important;
 }
+.stApp, 
+.stApp p, 
+.stApp span, 
+.stApp label, 
+.stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6,
+.stMarkdown, 
+div[data-testid="stMarkdownContainer"] > * {
+    color: #f0f4f9 !important;
+}
 section[data-testid="stSidebar"] {
     background-color: #131314 !important;
     border-right: 1px solid #282a2c !important;
+}
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] div {
+    color: #f0f4f9 !important;
 }
 .stChatMessage {
     background-color: #1e1f20 !important;
@@ -481,6 +636,12 @@ section[data-testid="stSidebar"] {
     border-radius: 18px;
     color: #f0f4f9 !important;
     box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+}
+div[data-testid="stBottom"] {
+    background: linear-gradient(180deg, rgba(7, 9, 14, 0) 0%, rgba(7, 9, 14, 0.95) 28%, #07090e 100%) !important;
+}
+div[data-testid="stBottom"] > div {
+    background: transparent !important;
 }
 .citation-card {
     background-color: rgba(255, 255, 255, 0.04) !important;
@@ -586,23 +747,17 @@ div[data-testid="stToolbar"] {
     pointer-events: none !important;
 }
 button[data-testid="stExpandSidebarButton"] {
-    display: flex !important;
-    visibility: visible !important;
-    pointer-events: auto !important;
-    z-index: 99999 !important;
     position: fixed !important;
-    top: 50px !important;
-    left: 8px !important;
-    width: 38px !important;
-    height: 38px !important;
-    cursor: pointer !important;
+    top: -200px !important;
+    left: -200px !important;
     opacity: 0 !important;
+    pointer-events: none !important;
 }
 div[data-testid="stSidebarHeader"] {
     position: relative !important;
     display: flex !important;
     justify-content: flex-end !important;
-    padding: 12px 14px 0 14px !important;
+    padding: 10px 14px 0 14px !important;
     min-height: 40px !important;
 }
 button[data-testid="stSidebarCollapseButton"] {
@@ -612,18 +767,21 @@ button[data-testid="stSidebarCollapseButton"] {
     border-radius: 8px !important;
 }
 
-/* Collapsed Sidebar Rail Base */
+/* Collapsed Sidebar Rail - Seamless, Transparent (No solid strip) */
 .collapsed-rail {
     position: fixed;
     top: 0;
     left: 0;
     bottom: 0;
-    width: 52px;
+    width: 48px;
+    background: transparent !important;
+    border: none !important;
+    box-shadow: none !important;
     display: none;
     flex-direction: column;
     align-items: center;
     justify-content: space-between;
-    padding: 12px 0 16px 0;
+    padding: 14px 0 16px 0;
     z-index: 99990;
     box-sizing: border-box;
     user-select: none;
@@ -635,18 +793,27 @@ button[data-testid="stSidebarCollapseButton"] {
     width: 100%;
 }
 .collapsed-rail .rail-item {
-    width: 38px;
-    height: 38px;
+    width: 36px;
+    height: 36px;
     display: flex;
     align-items: center;
     justify-content: center;
     border-radius: 10px;
     cursor: pointer;
-    margin-bottom: 8px;
-    transition: background 0.15s ease, transform 0.1s ease;
+    margin-bottom: 6px;
+    background: transparent !important;
+    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+}
+.collapsed-rail .rail-item svg,
+.collapsed-rail .rail-item svg * {
+    stroke: currentColor !important;
+    stroke-width: 2 !important;
+    stroke-linecap: round !important;
+    stroke-linejoin: round !important;
+    fill: none !important;
 }
 .collapsed-rail .rail-logo {
-    font-size: 1.4rem;
+    font-size: 1.45rem;
     cursor: pointer;
     margin-bottom: 12px;
 }
@@ -656,46 +823,109 @@ button[data-testid="stSidebarCollapseButton"] {
     cursor: pointer;
 }
 .collapsed-rail .rail-avatar {
-    width: 32px;
-    height: 32px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: linear-gradient(135deg, #059669, #10b981);
-    color: #ffffff;
+    color: #ffffff !important;
     font-weight: 700;
-    font-size: 0.85rem;
+    font-size: 0.82rem;
 }
 
+/* Zero-Lag Pure CSS Instant Visibility */
+body:has(section[data-testid="stSidebar"][aria-expanded="false"]) .collapsed-rail {
+    display: flex !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) .collapsed-rail {
+    display: none !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="false"]) section.main {
+    margin-left: 0px !important;
+    padding-left: 56px !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) section.main {
+    margin-left: 0px !important;
+    padding-left: 0px !important;
+}
+section[data-testid="stSidebar"][aria-expanded="false"] {
+    border-right: none !important;
+    box-shadow: none !important;
+    background: transparent !important;
+}
+div[data-testid="stSidebarCollapsedControl"] {
+    display: none !important;
+}
+
+/* Mobile View: No strip, only top-left logo opener */
+.mobile-logo-opener {
+    display: none;
+    position: fixed;
+    top: 10px;
+    left: 12px;
+    z-index: 99999;
+    cursor: pointer;
+    user-select: none;
+    font-size: 1.6rem;
+    padding: 2px;
+}
+@media (max-width: 768px) {
+    .collapsed-rail {
+        display: none !important;
+        visibility: hidden !important;
+        pointer-events: none !important;
+        width: 0 !important;
+    }
+    body:has(section[data-testid="stSidebar"][aria-expanded="false"]) .mobile-logo-opener {
+        display: flex !important;
+    }
+    body:has(section[data-testid="stSidebar"][aria-expanded="true"]) .mobile-logo-opener {
+        display: none !important;
+    }
+    section.main {
+        margin-left: 0px !important;
+        padding-left: 1rem !important;
+        padding-right: 1rem !important;
+        padding-top: 2rem !important;
+    }
+}
 
 @media (prefers-color-scheme: light) {
     .stApp { background: radial-gradient(circle at 50% 30%, #eef4ff 0%, #f4f7fc 50%, #ffffff 100%) !important; color: #1f1f1f !important; }
-    .stApp * { color: #1f1f1f !important; }
+    .stApp, .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stMarkdown, div[data-testid="stMarkdownContainer"] > * { color: #1f1f1f !important; }
     section[data-testid="stSidebar"] { background-color: #f0f4f9 !important; border-right: 1px solid #dfe3e7 !important; }
-    section[data-testid="stSidebar"] * { color: #1f1f1f !important; }
+    section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] span, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] div { color: #1f1f1f !important; }
     .stChatMessage { background-color: #ffffff !important; border: 1px solid #dfe3e7 !important; color: #1f1f1f !important; }
-    .stChatMessage * { color: #1f1f1f !important; }
+    div[data-testid="stBottom"] { background: linear-gradient(180deg, rgba(255, 255, 255, 0) 0%, rgba(255, 255, 255, 0.95) 28%, #ffffff 100%) !important; }
+    div[data-testid="stBottom"] > div { background: transparent !important; }
     .citation-card { background-color: #f1f5f9 !important; border-left: 3px solid #059669 !important; color: #1e293b !important; }
-    .citation-card * { color: #1e293b !important; }
     .hero-title { color: #1f1f1f !important; }
     .hero-sub { color: #444746 !important; }
-    .collapsed-rail { background: #f0f4f9; border-right: 1px solid #dfe3e7; }
-    .collapsed-rail .rail-item { color: #1f1f1f; }
-    .collapsed-rail .rail-item:hover { background: #dfe3e7; color: #000000; }
+    .collapsed-rail .rail-item { color: #374151 !important; }
+    .collapsed-rail .rail-item svg { stroke: #374151 !important; }
+    .collapsed-rail .rail-item:hover { background: rgba(0, 0, 0, 0.08) !important; color: #111827 !important; }
+    .collapsed-rail .rail-item:hover svg { stroke: #111827 !important; }
     button[data-testid="stSidebarCollapseButton"] { color: #1f1f1f !important; }
     button[data-testid="stSidebarCollapseButton"]:hover { background: #e0e4eb !important; }
 }
 @media (prefers-color-scheme: dark) {
     .stApp { background: radial-gradient(circle at 50% 30%, #17243c 0%, #0d121c 55%, #07090e 100%) !important; color: #f0f4f9 !important; }
+    .stApp, .stApp p, .stApp span, .stApp label, .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stMarkdown, div[data-testid="stMarkdownContainer"] > * { color: #f0f4f9 !important; }
     section[data-testid="stSidebar"] { background-color: #131314 !important; border-right: 1px solid #282a2c !important; }
+    section[data-testid="stSidebar"] p, section[data-testid="stSidebar"] span, section[data-testid="stSidebar"] label, section[data-testid="stSidebar"] div { color: #f0f4f9 !important; }
     .stChatMessage { background-color: #1e1f20 !important; border: 1px solid #282a2c !important; color: #f0f4f9 !important; }
+    div[data-testid="stBottom"] { background: linear-gradient(180deg, rgba(7, 9, 14, 0) 0%, rgba(7, 9, 14, 0.95) 28%, #07090e 100%) !important; }
+    div[data-testid="stBottom"] > div { background: transparent !important; }
     .citation-card { background-color: rgba(255, 255, 255, 0.04) !important; border-left: 3px solid #10b981 !important; color: #e2e8f0 !important; }
     .hero-title { color: #f0f4f9 !important; }
     .hero-sub { color: #c4c7c5 !important; }
-    .collapsed-rail { background: #131314; border-right: 1px solid #282a2c; }
-    .collapsed-rail .rail-item { color: #f0f4f9; }
-    .collapsed-rail .rail-item:hover { background: #282a2c; color: #ffffff; }
+    .collapsed-rail .rail-item { color: #d1d5db !important; }
+    .collapsed-rail .rail-item svg { stroke: #d1d5db !important; }
+    .collapsed-rail .rail-item:hover { background: rgba(255, 255, 255, 0.12) !important; color: #ffffff !important; }
+    .collapsed-rail .rail-item:hover svg { stroke: #ffffff !important; }
     button[data-testid="stSidebarCollapseButton"] { color: #f0f4f9 !important; }
     button[data-testid="stSidebarCollapseButton"]:hover { background: #282a2c !important; }
 }
+
 
 .badge { display: inline-block; padding: 3px 9px; border-radius: 12px; background: linear-gradient(135deg, #059669, #10b981); color: white !important; font-size: 0.75em; font-weight: 600; }
 .admin-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 10px; }
@@ -1009,161 +1239,95 @@ def render_collapsed_sidebar_rail(username: str, role_label: str, initial_letter
     """
     Renders the persistent collapsed icon rail on the left side of the screen.
     Includes Avocado logo, toggle button, new chat, search, document vault, settings,
-    and profile avatar. Clicking ANYWHERE in the free space of the vertical rail line
-    expands the sidebar.
+    and profile avatar. Pure CSS manages visibility without background setInterval lag.
+    On mobile, renders a floating top-left logo opener instead of the full strip.
     """
     rail_html = f"""
+    <!-- Desktop Collapsed Sidebar Rail (Transparent, blends with background) -->
     <div id="collapsed-sidebar-rail" class="collapsed-rail">
       <div class="rail-top">
-        <div class="rail-item rail-logo" id="rail-logo-btn" title="AI Assistant">🥑</div>
-        <div class="rail-item" id="rail-toggle-btn" title="Expand Sidebar (click anywhere on line)">
+        <div class="rail-item rail-logo" onclick="openSidebar()" title="AI Assistant - Open Sidebar">🥑</div>
+        <div class="rail-item" onclick="openSidebar()" title="Expand Sidebar">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>
+            <rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path>
           </svg>
         </div>
-        <div class="rail-item" id="rail-new-chat-btn" title="New chat">
+        <div class="rail-item" onclick="triggerNewChat()" title="New chat">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+            <path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
           </svg>
         </div>
-        <div class="rail-item" id="rail-search-btn" title="Recent chats">
+        <div class="rail-item" onclick="openSidebar()" title="Recent chats">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+            <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>
           </svg>
         </div>
-        <div class="rail-item" id="rail-vault-btn" title="Document Vault">
+        <div class="rail-item" onclick="openSidebar()" title="Document Vault">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
+            <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
           </svg>
         </div>
       </div>
       
       <!-- Free space along the sidebar line: clicking anywhere here opens the sidebar -->
-      <div class="rail-free-space" id="rail-free-space" title="Click anywhere along this line to open sidebar"></div>
+      <div class="rail-free-space" onclick="openSidebar()" title="Click anywhere along this line to open sidebar"></div>
       
       <div class="rail-bottom">
-        <div class="rail-item" id="rail-settings-btn" title="Settings &amp; Preferences">
+        <div class="rail-item" onclick="triggerSettings()" title="Settings &amp; Preferences">
           <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"/>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
           </svg>
         </div>
-        <div class="rail-item rail-avatar" id="rail-profile-btn" title="{username} ({role_label})">
+        <div class="rail-item rail-avatar" onclick="triggerSettings()" title="{username} ({role_label})">
           {initial_letter}
         </div>
       </div>
     </div>
 
+    <!-- Mobile-Only Compact Sidebar Opener (Top-Left) -->
+    <div id="mobile-sidebar-opener" class="mobile-logo-opener" onclick="openSidebar()" title="Open Sidebar">
+      🥑
+    </div>
+
     <script>
-    (function() {{
-        function getSidebar() {{
-            return document.querySelector('section[data-testid="stSidebar"]');
+    window.openSidebar = function() {{
+        var expBtn = document.querySelector('button[data-testid="stExpandSidebarButton"]');
+        if (expBtn) {{
+            expBtn.click();
+            return;
         }}
-
-        function isSidebarExpanded() {{
-            const sb = getSidebar();
-            if (!sb) return false;
-            return sb.getAttribute('aria-expanded') === 'true';
+        var sb = document.querySelector('section[data-testid="stSidebar"]');
+        if (sb && sb.getAttribute('aria-expanded') === 'false') {{
+            var collapseBtn = sb.querySelector('button[data-testid="stSidebarCollapseButton"]');
+            if (collapseBtn) collapseBtn.click();
         }}
+    }};
 
-        function openSidebar() {{
-            const expBtn = document.querySelector('button[data-testid="stExpandSidebarButton"]');
-            if (expBtn) {{
-                expBtn.click();
-                return;
+    window.triggerNewChat = function() {{
+        window.openSidebar();
+        setTimeout(function() {{
+            var btns = Array.from(document.querySelectorAll('section[data-testid="stSidebar"] button'));
+            var newChatBtn = btns.find(b => b.textContent && b.textContent.includes('New chat'));
+            if (newChatBtn) newChatBtn.click();
+        }}, 120);
+    }};
+
+    window.triggerSettings = function() {{
+        window.openSidebar();
+        setTimeout(function() {{
+            var expanders = Array.from(document.querySelectorAll('section[data-testid="stSidebar"] details'));
+            var settingsExp = expanders.find(e => e.textContent && e.textContent.includes('Settings'));
+            if (settingsExp) {{
+                settingsExp.open = true;
+                settingsExp.scrollIntoView({{ behavior: 'smooth' }});
             }}
-            const sb = getSidebar();
-            if (sb && sb.getAttribute('aria-expanded') === 'false') {{
-                const collapseBtn = sb.querySelector('button[data-testid="stSidebarCollapseButton"]');
-                if (collapseBtn) {{
-                    collapseBtn.click();
-                    return;
-                }}
-            }}
-        }}
-
-        function triggerNewChat() {{
-            openSidebar();
-            setTimeout(() => {{
-                const btns = Array.from(document.querySelectorAll('section[data-testid="stSidebar"] button'));
-                const newChatBtn = btns.find(b => b.textContent && b.textContent.includes('New chat'));
-                if (newChatBtn) newChatBtn.click();
-            }}, 150);
-        }}
-
-        function triggerSettings() {{
-            openSidebar();
-            setTimeout(() => {{
-                const expanders = Array.from(document.querySelectorAll('section[data-testid="stSidebar"] details'));
-                const settingsExp = expanders.find(e => e.textContent && e.textContent.includes('Settings'));
-                if (settingsExp) {{
-                    settingsExp.open = true;
-                    settingsExp.scrollIntoView({{ behavior: 'smooth' }});
-                }}
-            }}, 150);
-        }}
-
-        function updateRailVisibility() {{
-            const rail = document.getElementById('collapsed-sidebar-rail');
-            if (!rail) return;
-            const expanded = isSidebarExpanded();
-            rail.style.display = expanded ? 'none' : 'flex';
-
-            const main = document.querySelector('section.main');
-            if (main) {{
-                main.style.marginLeft = expanded ? '0px' : '52px';
-            }}
-        }}
-
-        function attachRailListeners() {{
-            const rail = document.getElementById('collapsed-sidebar-rail');
-            if (!rail || rail.dataset.bound === 'true') return;
-            rail.dataset.bound = 'true';
-
-            const freeSpace = document.getElementById('rail-free-space');
-            if (freeSpace) freeSpace.addEventListener('click', openSidebar);
-
-            const toggleBtn = document.getElementById('rail-toggle-btn');
-            if (toggleBtn) toggleBtn.addEventListener('click', openSidebar);
-
-            const logoBtn = document.getElementById('rail-logo-btn');
-            if (logoBtn) logoBtn.addEventListener('click', openSidebar);
-
-            const newChat = document.getElementById('rail-new-chat-btn');
-            if (newChat) newChat.addEventListener('click', triggerNewChat);
-
-            const searchBtn = document.getElementById('rail-search-btn');
-            if (searchBtn) searchBtn.addEventListener('click', openSidebar);
-
-            const vaultBtn = document.getElementById('rail-vault-btn');
-            if (vaultBtn) vaultBtn.addEventListener('click', openSidebar);
-
-            const settingsBtn = document.getElementById('rail-settings-btn');
-            if (settingsBtn) settingsBtn.addEventListener('click', triggerSettings);
-
-            const profileBtn = document.getElementById('rail-profile-btn');
-            if (profileBtn) profileBtn.addEventListener('click', triggerSettings);
-
-            rail.addEventListener('click', function(e) {{
-                if (e.target === rail || e.target.classList.contains('rail-top') || e.target.classList.contains('rail-bottom') || e.target.classList.contains('rail-free-space')) {{
-                    openSidebar();
-                }}
-            }});
-        }}
-
-        attachRailListeners();
-        updateRailVisibility();
-
-        const observer = new MutationObserver(() => {{
-            attachRailListeners();
-            updateRailVisibility();
-        }});
-        observer.observe(document.body, {{ childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded'] }});
-        setInterval(updateRailVisibility, 250);
-    }})();
+        }}, 120);
+    }};
     </script>
     """
     st.html(rail_html, unsafe_allow_javascript=True)
+
 
 def main():
 
@@ -1411,18 +1575,6 @@ def main():
     elif not is_authenticated:
         messages = st.session_state.guest_messages
 
-    # Top right Auth status if Guest
-    if not is_authenticated:
-        top_c1, top_c2 = st.columns([5, 2])
-        with top_c2:
-            sb1, sb2 = st.columns(2)
-            with sb1:
-                if st.button("Sign In", type="primary", use_container_width=True):
-                    show_auth_modal(0)
-            with sb2:
-                if st.button("Sign Up", type="secondary", use_container_width=True):
-                    show_auth_modal(1)
-
     # Host Alert Banner for Admin
     if is_admin:
         unack = get_unacknowledged_count()
@@ -1507,120 +1659,123 @@ def main():
                         """, unsafe_allow_html=True)
 
     # =========================================================================
-    # ATTACHMENT TRAY TOGGLE: Aligned directly with the Ask Question bar
+    # FOOTER: ATTACHMENT TRAY & CHAT PROMPT INPUT BAR
+    # Docked cleanly at the footer right with the prompt search bar
     # =========================================================================
-    if st.session_state.show_uploader:
-        with st.container():
-            st.markdown("""
-            <div style="background: rgba(128,128,128,0.06); border: 1px solid rgba(128,128,128,0.18); border-radius: 16px; padding: 16px; margin-bottom: 12px;">
-                <div style="font-weight: 600; font-size: 0.95rem; margin-bottom: 4px;">📂 Document Ingestion Tray</div>
-                <div style="font-size: 0.8rem; opacity: 0.7; margin-bottom: 10px;">Select files to index into your private vault (PDF, DOCX, CSV, TXT, MD).</div>
-            """, unsafe_allow_html=True)
+    with st.bottom:
+        if st.session_state.show_uploader:
+            with st.container():
+                st.markdown("""
+                <div style="background: rgba(128,128,128,0.08); border: 1px solid rgba(128,128,128,0.18); border-radius: 14px; padding: 12px 16px; margin-bottom: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                        <div style="font-weight: 600; font-size: 0.92rem; display: flex; align-items: center; gap: 6px;">
+                            <span>📂</span> <span>Knowledge Vault Uploader</span>
+                        </div>
+                        <div style="font-size: 0.78rem; opacity: 0.7;">PDF, DOCX, CSV, TXT, MD</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
 
-            uploaded_files = st.file_uploader(
-                "Upload documents to index into your private vault",
-                type=["pdf", "docx", "csv", "txt", "md"],
-                accept_multiple_files=True,
-                key="chat_bar_uploader",
-                label_visibility="collapsed",
-            )
+                uploaded_files = st.file_uploader(
+                    "Upload documents to index into your private vault",
+                    type=["pdf", "docx", "csv", "txt", "md"],
+                    accept_multiple_files=True,
+                    key="footer_doc_uploader",
+                    label_visibility="collapsed",
+                )
 
-            c_reset, c_btn = st.columns([1, 2])
-            with c_reset:
-                reset_vault = st.checkbox("Reset Index", value=False, help="Wipe only your private vector namespace.")
-            with c_btn:
-                process_btn = st.button("📥 Ingest into Knowledge Vault", type="primary", use_container_width=True)
+                c_reset, c_btn = st.columns([1, 2])
+                with c_reset:
+                    reset_vault = st.checkbox("Reset Index", value=False, help="Wipe only your private vector namespace.")
+                with c_btn:
+                    process_btn = st.button("📥 Index Files", type="primary", use_container_width=True)
 
-            if process_btn:
-                if not is_authenticated:
-                    show_auth_modal(0)
-                elif not uploaded_files and not any(user_docs_dir.iterdir()):
-                    st.warning("Please select at least one document to upload.")
-                else:
-                    try:
-                        if uploaded_files:
-                            with st.spinner("Validating and uploading files..."):
-                                for uploaded_file in uploaded_files:
-                                    safe_name = sanitize_filename(uploaded_file.name)
-                                    file_bytes = uploaded_file.getbuffer().tobytes()
-                                    is_valid, val_msg = validate_document_content(file_bytes, safe_name)
-                                    if not is_valid:
-                                        st.error(f"Security Alert for '{uploaded_file.name}': {val_msg}")
-                                        record_activity(username, "SECURITY_BLOCKED_FILE", f"Blocked '{uploaded_file.name}': {val_msg}", user_id=user_id)
-                                        continue
-                                    save_path = user_docs_dir / safe_name
-                                    with open(save_path, "wb") as f:
-                                        f.write(file_bytes)
+                if process_btn:
+                    if not is_authenticated:
+                        show_auth_modal(0)
+                    elif not uploaded_files and not any(user_docs_dir.iterdir()):
+                        st.warning("Please select at least one document to upload.")
+                    else:
+                        try:
+                            if uploaded_files:
+                                with st.spinner("Validating and uploading files..."):
+                                    for uploaded_file in uploaded_files:
+                                        safe_name = sanitize_filename(uploaded_file.name)
+                                        file_bytes = uploaded_file.getbuffer().tobytes()
+                                        is_valid, val_msg = validate_document_content(file_bytes, safe_name)
+                                        if not is_valid:
+                                            st.error(f"Security Alert for '{uploaded_file.name}': {val_msg}")
+                                            record_activity(username, "SECURITY_BLOCKED_FILE", f"Blocked '{uploaded_file.name}': {val_msg}", user_id=user_id)
+                                            continue
+                                        save_path = user_docs_dir / safe_name
+                                        with open(save_path, "wb") as f:
+                                            f.write(file_bytes)
 
-                        # If admin and user dir empty, copy sample docs from config.DOCS_DIR
-                        if not any(user_docs_dir.iterdir()) and is_admin:
-                            for sf in config.DOCS_DIR.iterdir():
-                                if sf.is_file() and sf.suffix.lower() in SUPPORTED_EXTENSIONS:
-                                    shutil.copy2(sf, user_docs_dir / sf.name)
+                            # If admin and user dir empty, copy sample docs from config.DOCS_DIR
+                            if not any(user_docs_dir.iterdir()) and is_admin:
+                                for sf in config.DOCS_DIR.iterdir():
+                                    if sf.is_file() and sf.suffix.lower() in SUPPORTED_EXTENSIONS:
+                                        shutil.copy2(sf, user_docs_dir / sf.name)
 
-                        with st.spinner(f"Indexing documents into cloud vault '{user_namespace}'..."):
-                            docs = load_documents_from_directory(user_docs_dir)
-                            if not docs:
-                                st.warning("No supported documents found to index.")
-                            else:
-                                st.cache_resource.clear()
-                                chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
-                                embeddings = get_embeddings()
+                            with st.spinner(f"Indexing documents into cloud vault '{user_namespace}'..."):
+                                docs = load_documents_from_directory(user_docs_dir)
+                                if not docs:
+                                    st.warning("No supported documents found to index.")
+                                else:
+                                    st.cache_resource.clear()
+                                    chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
+                                    embeddings = get_embeddings()
 
-                                if reset_vault:
-                                    for ed in get_user_documents(user_id):
-                                        delete_user_document(user_id, ed["filename"])
+                                    if reset_vault:
+                                        for ed in get_user_documents(user_id):
+                                            delete_user_document(user_id, ed["filename"])
 
-                                index_documents(
-                                    documents=chunks,
-                                    persist_directory=config.CHROMA_PERSIST_DIR,
-                                    embeddings=embeddings,
-                                    recreate=reset_vault,
-                                    namespace=user_namespace,
-                                )
-
-                                file_chunk_map: Dict[str, int] = {}
-                                for c in chunks:
-                                    fn = c.metadata.get("filename", "unknown.pdf")
-                                    file_chunk_map[fn] = file_chunk_map.get(fn, 0) + 1
-                                for fn, count in file_chunk_map.items():
-                                    record_user_document(user_id, fn, count)
-                                    record_activity(
-                                        username,
-                                        "DOCUMENT_UPLOAD",
-                                        f"Uploaded & indexed '{fn}' ({count} chunks)",
-                                        user_id=user_id,
+                                    index_documents(
+                                        documents=chunks,
+                                        persist_directory=config.CHROMA_PERSIST_DIR,
+                                        embeddings=embeddings,
+                                        recreate=reset_vault,
+                                        namespace=user_namespace,
                                     )
 
-                                st.cache_resource.clear()
-                                st.session_state.show_uploader = False
-                                st.success(f"Indexed {len(docs)} section(s) into {len(chunks)} chunks across your files!")
-                                st.rerun()
-                    except Exception as e:
-                        record_error(
-                            service="Document Ingestion",
-                            user_message="Document upload or indexing failed",
-                            exception=e,
-                        )
-                        st.error(f"⚠️ Document processing error: {e}")
+                                    file_chunk_map: Dict[str, int] = {}
+                                    for c in chunks:
+                                        fn = c.metadata.get("filename", "unknown.pdf")
+                                        file_chunk_map[fn] = file_chunk_map.get(fn, 0) + 1
+                                    clone_map = dict(file_chunk_map)
+                                    for fn, count in clone_map.items():
+                                        record_user_document(user_id, fn, count)
+                                        record_activity(
+                                            username,
+                                            "DOCUMENT_UPLOAD",
+                                            f"Uploaded & indexed '{fn}' ({count} chunks)",
+                                            user_id=user_id,
+                                        )
 
-            st.markdown("</div>", unsafe_allow_html=True)
+                                    st.cache_resource.clear()
+                                    st.session_state.show_uploader = False
+                                    st.success(f"Indexed {len(docs)} section(s) into {len(chunks)} chunks across your files!")
+                                    st.rerun()
+                        except Exception as e:
+                            record_error(
+                                service="Document Ingestion",
+                                user_message="Document upload or indexing failed",
+                                exception=e,
+                            )
+                            st.error(f"⚠️ Document processing error: {e}")
 
-    # '+' Attachment Trigger row right alongside/above chat input
-    col_plus_btn, col_hint = st.columns([1, 8])
-    with col_plus_btn:
-        toggle_label = "➖ Close" if st.session_state.show_uploader else "➕ Attach"
-        if st.button(toggle_label, key="toggle_attach_btn", help="Attach PDF, Word DOCX, CSV, TXT, MD"):
-            st.session_state.show_uploader = not st.session_state.show_uploader
-            st.rerun()
-    with col_hint:
-        if not st.session_state.show_uploader:
-            st.caption("Click **➕ Attach** to upload and index documents into your private vault.")
+        # Footer row: '+' button toggle + Chat input
+        col_attach, col_input = st.columns([1, 14], vertical_alignment="bottom")
+        with col_attach:
+            toggle_label = "✖" if st.session_state.show_uploader else "➕"
+            toggle_help = "Close uploader" if st.session_state.show_uploader else "Attach files to private vault"
+            if st.button(toggle_label, key="footer_attach_toggle", help=toggle_help, use_container_width=True):
+                st.session_state.show_uploader = not st.session_state.show_uploader
+                st.rerun()
+        with col_input:
+            user_query = st.chat_input("Ask a question or explore your documents...")
 
-    # =========================================================================
-    # CHAT PROMPT INPUT BAR & QUERY PROCESSING
-    # =========================================================================
-    if user_query := st.chat_input("Ask a question or explore your documents..."):
+    if user_query:
         if not is_authenticated:
             show_auth_modal(0)
             st.info("💡 Please sign in or create an account to query your private knowledge vault.")
