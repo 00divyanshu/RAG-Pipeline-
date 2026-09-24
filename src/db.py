@@ -1,6 +1,8 @@
 import json
 import logging
 import sqlite3
+import secrets
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 import bcrypt
@@ -94,6 +96,21 @@ def init_db():
                 uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(user_id, filename)
             );
+            CREATE TABLE IF NOT EXISTS auth_tokens (
+                token VARCHAR(128) PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id SERIAL PRIMARY KEY,
+                user_id INT REFERENCES users(id) ON DELETE SET NULL,
+                username VARCHAR(64) NOT NULL,
+                action VARCHAR(64) NOT NULL,
+                details TEXT,
+                ip_address VARCHAR(64) DEFAULT 'client',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
             """)
         else:
             getattr(conn, "executescript")("""
@@ -126,6 +143,21 @@ def init_db():
                 chunk_count INTEGER DEFAULT 0,
                 uploaded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                 UNIQUE(user_id, filename)
+            );
+            CREATE TABLE IF NOT EXISTS auth_tokens (
+                token TEXT PRIMARY KEY,
+                user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                expires_at TIMESTAMP NOT NULL
+            );
+            CREATE TABLE IF NOT EXISTS activity_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+                username TEXT NOT NULL,
+                action TEXT NOT NULL,
+                details TEXT,
+                ip_address TEXT DEFAULT 'client',
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
             """)
         conn.commit()
@@ -480,6 +512,178 @@ def get_admin_platform_stats() -> Dict[str, Any]:
             "total_messages": total_messages,
             "users_list": users_table,
         }
+    finally:
+        cur.close()
+        conn.close()
+
+# ---------------------------------------------------------
+# Persistent Session Auth Tokens (Survives Browser Refresh)
+# ---------------------------------------------------------
+
+def create_auth_token(user_id: int, days_valid: int = 14) -> str:
+    """Generates and stores a cryptographically secure session token for page-refresh persistence."""
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(days=days_valid)
+    conn, engine_type = get_connection()
+    cur = conn.cursor()
+    try:
+        query = (
+            "INSERT INTO auth_tokens (token, user_id, expires_at) VALUES (%s, %s, %s)"
+            if engine_type == "postgres"
+            else "INSERT INTO auth_tokens (token, user_id, expires_at) VALUES (?, ?, ?)"
+        )
+        cur.execute(query, (token, user_id, expires_at))
+        conn.commit()
+        return token
+    finally:
+        cur.close()
+        conn.close()
+
+def get_user_by_auth_token(token: str) -> Optional[Dict[str, Any]]:
+    """Retrieves user profile associated with an active, unexpired session token."""
+    if not token or not isinstance(token, str):
+        return None
+    token = token.strip()
+    if not token:
+        return None
+    conn, engine_type = get_connection()
+    cur = conn.cursor()
+    try:
+        now = datetime.now(timezone.utc)
+        query = (
+            """
+            SELECT u.id, u.username, u.role
+            FROM auth_tokens t
+            JOIN users u ON t.user_id = u.id
+            WHERE t.token = %s AND t.expires_at > %s
+            """
+            if engine_type == "postgres"
+            else
+            """
+            SELECT u.id, u.username, u.role
+            FROM auth_tokens t
+            JOIN users u ON t.user_id = u.id
+            WHERE t.token = ? AND t.expires_at > ?
+            """
+        )
+        cur.execute(query, (token, now))
+        row = cur.fetchone()
+        if row:
+            return {"id": row[0], "username": row[1], "role": row[2]}
+        return None
+    except Exception as e:
+        logger.warning(f"Failed to lookup auth token: {e}")
+        return None
+    finally:
+        cur.close()
+        conn.close()
+
+def revoke_auth_token(token: str) -> None:
+    """Revokes a session token on sign out."""
+    if not token:
+        return
+    conn, engine_type = get_connection()
+    cur = conn.cursor()
+    try:
+        query = (
+            "DELETE FROM auth_tokens WHERE token = %s"
+            if engine_type == "postgres"
+            else "DELETE FROM auth_tokens WHERE token = ?"
+        )
+        cur.execute(query, (token.strip(),))
+        conn.commit()
+    except Exception as e:
+        logger.warning(f"Failed revoking auth token: {e}")
+    finally:
+        cur.close()
+        conn.close()
+
+# ---------------------------------------------------------
+# User Activity Audit Trail
+# ---------------------------------------------------------
+
+def record_activity(
+    username: str,
+    action: str,
+    details: str = "",
+    user_id: Optional[int] = None,
+    ip_address: str = "client",
+) -> None:
+    """Records an immutable user activity audit event."""
+    try:
+        conn, engine_type = get_connection()
+        cur = conn.cursor()
+        try:
+            query = (
+                "INSERT INTO activity_logs (user_id, username, action, details, ip_address) VALUES (%s, %s, %s, %s, %s)"
+                if engine_type == "postgres"
+                else "INSERT INTO activity_logs (user_id, username, action, details, ip_address) VALUES (?, ?, ?, ?, ?)"
+            )
+            cur.execute(query, (user_id, username, action, details, ip_address))
+            conn.commit()
+        finally:
+            cur.close()
+            conn.close()
+    except Exception as e:
+        logger.warning(f"Could not record activity log: {e}")
+
+def get_recent_activity_logs(limit: int = 100) -> List[Dict[str, Any]]:
+    """Returns recent platform activity audit events for the Master Admin."""
+    conn, engine_type = get_connection()
+    cur = conn.cursor()
+    try:
+        query = (
+            "SELECT id, username, action, details, ip_address, created_at FROM activity_logs ORDER BY created_at DESC LIMIT %s"
+            if engine_type == "postgres"
+            else "SELECT id, username, action, details, ip_address, created_at FROM activity_logs ORDER BY created_at DESC LIMIT ?"
+        )
+        cur.execute(query, (limit,))
+        rows = cur.fetchall()
+        return [
+            {
+                "id": r[0],
+                "username": r[1],
+                "action": r[2],
+                "details": r[3] or "",
+                "ip_address": r[4] or "client",
+                "created_at": str(r[5])[:19],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.warning(f"Could not fetch activity logs: {e}")
+        return []
+    finally:
+        cur.close()
+        conn.close()
+
+def get_all_users_documents() -> List[Dict[str, Any]]:
+    """Returns all uploaded files across all users for the Master Admin directory."""
+    conn, engine_type = get_connection()
+    cur = conn.cursor()
+    try:
+        query = """
+        SELECT ud.id, ud.user_id, u.username, ud.filename, ud.chunk_count, ud.uploaded_at
+        FROM user_documents ud
+        JOIN users u ON ud.user_id = u.id
+        ORDER BY ud.uploaded_at DESC
+        """
+        cur.execute(query)
+        rows = cur.fetchall()
+        return [
+            {
+                "id": r[0],
+                "user_id": r[1],
+                "username": r[2],
+                "filename": r[3],
+                "chunk_count": r[4],
+                "uploaded_at": str(r[5])[:19],
+            }
+            for r in rows
+        ]
+    except Exception as e:
+        logger.warning(f"Could not fetch all user documents: {e}")
+        return []
     finally:
         cur.close()
         conn.close()

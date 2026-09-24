@@ -34,6 +34,12 @@ from src.db import (
     init_db,
     register_user,
     authenticate_user,
+    create_auth_token,
+    get_user_by_auth_token,
+    revoke_auth_token,
+    record_activity,
+    get_recent_activity_logs,
+    get_all_users_documents,
     create_chat_session,
     get_user_chat_sessions,
     update_chat_session_title,
@@ -44,6 +50,18 @@ from src.db import (
     get_user_documents,
     delete_user_document,
     get_admin_platform_stats,
+)
+from src.security import (
+    check_login_rate_limit,
+    record_login_failure,
+    reset_login_rate_limit,
+    check_register_rate_limit,
+    record_register_attempt,
+    sanitize_filename,
+    validate_pdf_content,
+    validate_username,
+    validate_password,
+    sanitize_html,
 )
 
 # Page configuration
@@ -158,13 +176,28 @@ def render_auth_portal():
                     if not login_username or not login_password:
                         st.error("Please enter both username and password.")
                     else:
-                        user = authenticate_user(login_username, login_password)
-                        if user:
-                            st.session_state.user = user
-                            st.toast(f"Welcome back, @{user['username']}! 👋", icon="🎉")
-                            st.rerun()
+                        is_allowed, remaining_sec = check_login_rate_limit(login_username)
+                        if not is_allowed:
+                            st.error(f"⛔ Too many failed login attempts! Account temporarily locked for {remaining_sec}s to protect against cyber brute-force attacks.")
+                            record_activity(login_username, "SECURITY_LOCKOUT", f"Login rate limit lockout triggered ({remaining_sec}s remaining)")
                         else:
-                            st.error("Invalid credentials. Please verify username and password.")
+                            user = authenticate_user(login_username, login_password)
+                            if user:
+                                reset_login_rate_limit(login_username)
+                                token = create_auth_token(user["id"])
+                                st.query_params["session_token"] = token
+                                st.session_state.auth_token = token
+                                st.session_state.user = user
+                                record_activity(user["username"], "USER_LOGIN", "Authenticated successfully into workspace", user_id=user["id"])
+                                st.toast(f"Welcome back, @{user['username']}! 👋", icon="🎉")
+                                st.rerun()
+                            else:
+                                rem = record_login_failure(login_username)
+                                if rem > 0:
+                                    st.error(f"Invalid credentials. ⚠️ {rem} attempt(s) remaining before temporary lockout.")
+                                else:
+                                    st.error("⛔ Account temporarily locked for 5 minutes due to multiple failed login attempts.")
+                                record_activity(login_username, "LOGIN_FAILED", "Invalid credentials submitted")
 
         with tab_register:
             st.markdown("#### Create Your Personal Account")
@@ -176,25 +209,41 @@ def render_auth_portal():
                 submit_register = st.form_submit_button("Create Account ✨", type="primary", use_container_width=True)
 
                 if submit_register:
-                    if reg_password != reg_confirm:
+                    u_ok, u_msg = validate_username(reg_username)
+                    p_ok, p_msg = validate_password(reg_password)
+                    if not u_ok:
+                        st.error(u_msg)
+                    elif not p_ok:
+                        st.error(p_msg)
+                    elif reg_password != reg_confirm:
                         st.error("Passwords do not match. Please re-enter.")
                     else:
-                        ok, msg, new_user = register_user(reg_username, reg_password)
-                        if ok and new_user is not None:
-                            st.session_state.user = new_user
-                            # Auto-create initial conversation session
-                            sid = create_chat_session(new_user["id"], "Initial Chat")
-                            add_chat_message(
-                                sid,
-                                "assistant",
-                                f"Welcome @{new_user['username']}! 🥑 I am your AI Knowledge Assistant. Upload any PDF in the sidebar to begin querying your documents.",
-                                [],
-                            )
-                            st.session_state.current_session_id = sid
-                            st.toast("Account created successfully! 🚀", icon="✨")
-                            st.rerun()
+                        can_register, reg_rem_sec = check_register_rate_limit("client_session")
+                        if not can_register:
+                            st.error(f"⛔ Registration rate limit reached. Please wait {reg_rem_sec} seconds before creating another account.")
+                            record_activity(reg_username, "REGISTER_RATE_LIMITED", "Registration rate limit exceeded")
                         else:
-                            st.error(msg)
+                            record_register_attempt("client_session")
+                            ok, msg, new_user = register_user(reg_username, reg_password)
+                            if ok and new_user is not None:
+                                token = create_auth_token(new_user["id"])
+                                st.query_params["session_token"] = token
+                                st.session_state.auth_token = token
+                                st.session_state.user = new_user
+                                # Auto-create initial conversation session
+                                sid = create_chat_session(new_user["id"], "Initial Chat")
+                                add_chat_message(
+                                    sid,
+                                    "assistant",
+                                    f"Welcome @{new_user['username']}! 🥑 I am your AI Knowledge Assistant. Upload any PDF in the sidebar to begin querying your documents.",
+                                    [],
+                                )
+                                st.session_state.current_session_id = sid
+                                record_activity(new_user["username"], "USER_REGISTER", "New user workspace created", user_id=new_user["id"])
+                                st.toast("Account created successfully! 🚀", icon="✨")
+                                st.rerun()
+                            else:
+                                st.error(msg)
 
 def render_admin_suite(user: Dict[str, Any]):
     """Renders the new full-featured Master Admin Control Center with KPI metrics, diagnostics, users, and credentials."""
@@ -236,9 +285,11 @@ def render_admin_suite(user: Dict[str, Any]):
 
     st.markdown("<br>", unsafe_allow_html=True)
 
-    tab_health, tab_users, tab_telemetry, tab_creds = st.tabs([
+    tab_health, tab_users, tab_global_docs, tab_activity, tab_telemetry, tab_creds = st.tabs([
         "🩺 Live Health & Diagnostics",
         "👥 User Directory",
+        "📁 Global Document Directory",
+        "📋 User Activity Logs",
         "🚨 System Telemetry Logs",
         "🔑 Cloud API Credentials",
     ])
@@ -286,6 +337,44 @@ def render_admin_suite(user: Dict[str, Any]):
         else:
             st.info("No registered users found.")
 
+    with tab_global_docs:
+        st.markdown("### Global Document Directory (All Users)")
+        st.caption("Inventory of every document uploaded across all tenants in the platform.")
+        all_docs = get_all_users_documents()
+        if all_docs:
+            import pandas as pd
+            df_docs = pd.DataFrame(all_docs)
+            df_docs.columns = ["Doc ID", "User ID", "Owner Username", "Filename", "Chunks", "Uploaded At"]
+            st.dataframe(df_docs, use_container_width=True, hide_index=True)
+            st.metric("Total Platform Uploaded Files", len(all_docs))
+        else:
+            st.info("No documents have been uploaded by any user yet.")
+
+    with tab_activity:
+        st.markdown("### User Activity Logs & Audit Trail")
+        st.caption("Real-time telemetry recording every user login, upload, query, and session action.")
+        col_act1, col_act2 = st.columns([3, 1])
+        with col_act1:
+            search_act = st.text_input("🔍 Filter by username or action", placeholder="e.g. USER_LOGIN, DOCUMENT_UPLOAD, or username")
+        with col_act2:
+            limit_val = st.selectbox("Max Logs", [50, 100, 200], index=1)
+
+        logs = get_recent_activity_logs(limit=int(limit_val))
+        if search_act:
+            s_low = search_act.lower()
+            logs = [
+                l for l in logs
+                if s_low in l["username"].lower() or s_low in l["action"].lower() or s_low in l["details"].lower()
+            ]
+
+        if logs:
+            import pandas as pd
+            df_logs = pd.DataFrame(logs)
+            df_logs.columns = ["Event ID", "Username", "Action", "Details", "Client IP", "Timestamp"]
+            st.dataframe(df_logs, use_container_width=True, hide_index=True)
+        else:
+            st.info("No activity records matching query.")
+
     with tab_telemetry:
         st.markdown("### Error Telemetry & Exception Logs")
         errors = get_recent_errors(limit=15)
@@ -331,7 +420,18 @@ def render_admin_suite(user: Dict[str, Any]):
                 st.rerun()
 
 def main():
-    # If user is not authenticated, render login/signup
+    # 0. Session Persistence across Browser Page Refresh
+    if "user" not in st.session_state or st.session_state.user is None:
+        token = st.query_params.get("session_token")
+        if token:
+            persisted_user = get_user_by_auth_token(token)
+            if persisted_user:
+                st.session_state.user = persisted_user
+                st.session_state.auth_token = token
+            else:
+                st.query_params.clear()
+
+    # If user is still not authenticated, render login/signup
     if "user" not in st.session_state or st.session_state.user is None:
         render_auth_portal()
         return
@@ -376,7 +476,12 @@ def main():
         """, unsafe_allow_html=True)
 
         if st.button("🚪 Sign Out", use_container_width=True):
+            if "auth_token" in st.session_state and st.session_state.auth_token:
+                revoke_auth_token(st.session_state.auth_token)
+            record_activity(username, "USER_LOGOUT", "Signed out of workspace", user_id=user["id"])
+            st.query_params.clear()
             st.session_state.user = None
+            st.session_state.auth_token = None
             st.session_state.current_session_id = None
             st.rerun()
 
@@ -464,13 +569,20 @@ def main():
 
         if process_btn:
             try:
-                # 1. Save newly uploaded files to tenant directory
+                # 1. Save newly uploaded files to tenant directory with security validation
                 if uploaded_files:
                     with st.spinner("Saving uploaded PDF files..."):
                         for uploaded_file in uploaded_files:
-                            save_path = user_docs_dir / uploaded_file.name
+                            safe_filename = sanitize_filename(uploaded_file.name)
+                            file_bytes = uploaded_file.getbuffer().tobytes()
+                            is_valid, val_msg = validate_pdf_content(file_bytes)
+                            if not is_valid:
+                                st.error(f"Security Alert for '{uploaded_file.name}': {val_msg}")
+                                record_activity(username, "SECURITY_BLOCKED_FILE", f"Blocked '{uploaded_file.name}': {val_msg}", user_id=user_id)
+                                continue
+                            save_path = user_docs_dir / safe_filename
                             with open(save_path, "wb") as f:
-                                f.write(uploaded_file.getbuffer())
+                                f.write(file_bytes)
 
                 # If user directory is empty and user is admin, copy sample docs from config.DOCS_DIR
                 if not any(user_docs_dir.glob("*.pdf")) and is_admin:
@@ -507,6 +619,12 @@ def main():
                             file_chunk_map[fn] = file_chunk_map.get(fn, 0) + 1
                         for fn, count in file_chunk_map.items():
                             record_user_document(user_id, fn, count)
+                            record_activity(
+                                username,
+                                "DOCUMENT_UPLOAD",
+                                f"Uploaded & indexed '{fn}' ({count} chunks)",
+                                user_id=user_id,
+                            )
 
                         st.cache_resource.clear()
                         st.success(f"Indexed {len(docs)} pages into {len(chunks)} chunks!")
@@ -549,6 +667,7 @@ def main():
                                     namespace=user_namespace,
                                 )
                                 delete_user_document(user_id, d_name)
+                                record_activity(username, "DOCUMENT_DELETE", f"Removed document '{d_name}'", user_id=user_id)
                                 st.cache_resource.clear()
                             st.toast(f"Removed '{d_name}'!", icon="🗑️")
                             st.rerun()
@@ -661,16 +780,20 @@ def main():
                         if citations:
                             with st.expander(f"📌 View {len(citations)} Source Citations", expanded=False):
                                 for i, cite in enumerate(citations, 1):
+                                    safe_filename = sanitize_html(str(cite.get('filename', 'Unknown')))
+                                    safe_page = sanitize_html(str(cite.get('page', 'Unknown')))
+                                    safe_snippet = sanitize_html(str(cite.get('snippet', '')))
                                     st.markdown(f"""
                                     <div class="citation-card">
                                         <span class="badge">Citation #{i}</span><br>
-                                        <strong>File:</strong> <code>{cite['filename']}</code> | <strong>Page:</strong> {cite['page']}<br>
-                                        <em>"{cite['snippet']}"</em>
+                                        <strong>File:</strong> <code>{safe_filename}</code> | <strong>Page:</strong> {safe_page}<br>
+                                        <em>"{safe_snippet}"</em>
                                     </div>
                                     """, unsafe_allow_html=True)
 
                         # Save assistant message with citations to Neon DB
                         add_chat_message(active_session_id, "assistant", full_answer, citations=citations)
+                        record_activity(username, "CHAT_QUERY", f"Asked: {user_query[:60]}", user_id=user_id)
 
                 except Exception as query_err:
                     record_error(
