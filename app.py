@@ -7,6 +7,7 @@ except ImportError:
     pass
 
 import os
+import shutil
 import streamlit as st
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -49,8 +50,8 @@ from src.db import (
 
 # Page configuration
 st.set_page_config(
-    page_title="Agentic RAG Assistant",
-    page_icon="🥑",
+    page_title="AI Knowledge Assistant",
+    page_icon="⚡",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -91,11 +92,12 @@ st.markdown("""
         background: rgba(255, 255, 255, 0.03);
         border: 1px solid rgba(255, 255, 255, 0.08);
         border-radius: 12px;
-        padding: 16px;
+        padding: 12px;
         text-align: center;
+        margin-bottom: 8px;
     }
     .admin-stat {
-        font-size: 2.2em;
+        font-size: 1.8em;
         font-weight: 800;
         color: #34d399;
     }
@@ -137,10 +139,10 @@ def get_user_rag_pipeline(user_namespace: str):
         return None, None
 
 def render_auth_portal():
-    """Renders the sleek Sign In & Sign Up authentication screen."""
-    st.markdown("<div style='text-align: center; margin-top: 1.5rem; margin-bottom: 1rem;'>", unsafe_allow_html=True)
+    """Renders the sleek Sign In & Sign Up authentication screen without any printed credentials."""
+    st.markdown("<div style='text-align: center; margin-top: 2rem; margin-bottom: 1rem;'>", unsafe_allow_html=True)
     st.title("⚡ AI Knowledge Assistant")
-    st.caption("Enterprise Multi-Tenant RAG | Dedicated Document Isolation & Persistent Neural Memory")
+    st.caption("Cloud Multi-Tenant RAG | Complete Document Isolation & Persistent Neural Memory")
     st.markdown("</div>", unsafe_allow_html=True)
 
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -150,7 +152,7 @@ def render_auth_portal():
         with tab_login:
             st.markdown("#### Access Your Workspace")
             with st.form("form_login"):
-                login_username = st.text_input("Username", placeholder="e.g. johndoe or @dmin")
+                login_username = st.text_input("Username", placeholder="Enter your username")
                 login_password = st.text_input("Password", type="password", placeholder="Enter your password")
                 submit_login = st.form_submit_button("Sign In 🚀", type="primary", use_container_width=True)
 
@@ -165,13 +167,6 @@ def render_auth_portal():
                             st.rerun()
                         else:
                             st.error("Invalid credentials. Please verify username and password.")
-
-            st.markdown(
-                "<div style='font-size: 0.82em; color: #888; text-align: center; margin-top: 10px;'>"
-                "👑 <strong>Master Admin Credentials:</strong> Username: <code>@dmin</code> | Password: <code>@dmin0812</code>"
-                "</div>",
-                unsafe_allow_html=True,
-            )
 
         with tab_register:
             st.markdown("#### Create Your Personal Account")
@@ -203,125 +198,126 @@ def render_auth_portal():
                         else:
                             st.error(msg)
 
-def render_admin_suite(user: Dict[str, Any]):
-    """Renders the streamlined, professional Master Admin Control Suite."""
-    st.markdown("## 👑 Master Admin Control Center")
-    st.caption("Real-Time Platform Analytics, Multi-Tenant User Management & Live Cloud Health")
+def render_admin_sidebar_panels():
+    """Renders the comprehensive Host Diagnostics, Error Telemetry, and Cloud Credentials in the sidebar."""
+    st.markdown("### 👑 Host Administration Mode")
 
-    stats = get_admin_platform_stats()
+    # 1. Diagnostics & Error Logs (expanded if unacknowledged errors exist)
+    unack_count = get_unacknowledged_count()
+    with st.expander("🛠️ Host Diagnostics & Error Logs", expanded=(unack_count > 0)):
+        st.markdown("**Cloud Connectivity Status:**")
+        provider_display = "Groq LPU" if config.LLM_PROVIDER == "groq" else "Google Gemini"
+        st.write(f"- LLM Engine: `🟢 Active ({provider_display}: {config.LLM_MODEL})`")
+        st.write(f"- Pinecone Cloud DB: `🟢 Connected ({config.PINECONE_INDEX_NAME})`")
+        st.write(f"- Neon PostgreSQL DB: `🟢 Connected (SSL Encrypted)`")
+        st.write(f"- Embeddings: `🟢 Active ({config.GEMINI_EMBEDDING_MODEL})`")
 
-    # 1. Platform KPIs
-    kpi1, kpi2, kpi3, kpi4 = st.columns(4)
-    with kpi1:
-        st.markdown(f"""
-        <div class="admin-card">
-            <div style="color: #94a3b8; font-size: 0.85em; text-transform: uppercase;">Total Users</div>
-            <div class="admin-stat">{stats['total_users']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with kpi2:
-        st.markdown(f"""
-        <div class="admin-card">
-            <div style="color: #94a3b8; font-size: 0.85em; text-transform: uppercase;">Indexed Documents</div>
-            <div class="admin-stat">{stats['total_docs']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with kpi3:
-        st.markdown(f"""
-        <div class="admin-card">
-            <div style="color: #94a3b8; font-size: 0.85em; text-transform: uppercase;">Chat Sessions</div>
-            <div class="admin-stat">{stats['total_chats']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-    with kpi4:
-        st.markdown(f"""
-        <div class="admin-card">
-            <div style="color: #94a3b8; font-size: 0.85em; text-transform: uppercase;">Messages Exchanged</div>
-            <div class="admin-stat">{stats['total_messages']}</div>
-        </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("<br>", unsafe_allow_html=True)
-
-    tab_users, tab_health, tab_telemetry, tab_creds = st.tabs([
-        "👥 User Directory",
-        "🩺 Cloud Health Checks",
-        "🚨 System Telemetry Logs",
-        "🔑 Runtime Credentials",
-    ])
-
-    with tab_users:
-        st.markdown("### Registered Users & Usage Breakdown")
-        if stats["users_list"]:
-            import pandas as pd
-            df = pd.DataFrame(stats["users_list"])
-            df.columns = ["User ID", "Username", "Role", "Created At", "Uploaded Docs", "Chat Sessions"]
-            st.dataframe(df, use_container_width=True, hide_index=True)
-        else:
-            st.info("No registered users found.")
-
-    with tab_health:
-        st.markdown("### Live Cloud Service Connectivity Checks")
-        col_c1, col_c2 = st.columns(2)
-        with col_c1:
-            st.markdown(f"- **Groq LPU Engine**: `🟢 Active ({config.GROQ_LLM_MODEL})`")
-            st.markdown(f"- **Pinecone Vector Database**: `🟢 Connected (Index: {config.PINECONE_INDEX_NAME})`")
-        with col_c2:
-            st.markdown(f"- **Gemini Cloud Embeddings**: `🟢 Active ({config.GEMINI_EMBEDDING_MODEL})`")
-            st.markdown("- **Neon Serverless PostgreSQL**: `🟢 Connected (SSL Encrypted)`")
-
-        if st.button("🔄 Execute Live Ping Test Across Cloud Stack", use_container_width=True):
+        if st.button("🔄 Test Live Cloud Connections", use_container_width=True):
             with st.spinner("Pinging Pinecone Serverless and Neon Database..."):
                 try:
                     idx = get_pinecone_index()
                     idx_stats = idx.describe_index_stats()
                     total_v = idx_stats.get("total_vector_count", 0)
                     namespaces_count = len(idx_stats.get("namespaces", {}))
-                    st.success(f"✅ Pinecone Serverless OK! Total Vectors: {total_v} across {namespaces_count} isolated tenant namespace(s).")
+                    st.success(f"✅ Pinecone OK! Live Vector Count: {total_v} across {namespaces_count} namespace(s).")
                 except Exception as pc_err:
-                    st.error(f"❌ Pinecone Error: {pc_err}")
+                    st.error(f"❌ Pinecone Disconnection: {pc_err}")
+                    record_error("Pinecone", "Host test connection failed", exception=pc_err)
 
                 try:
                     from src.db import get_connection
                     conn, eng = get_connection()
                     conn.close()
-                    st.success(f"✅ Neon DB OK! Engine: {eng.upper()} connection active.")
+                    st.success(f"✅ Neon DB OK! Engine: {eng.upper()} connected.")
                 except Exception as db_err:
-                    st.error(f"❌ Database Error: {db_err}")
+                    st.error(f"❌ Neon DB Error: {db_err}")
+                    record_error("Neon DB", "Host test DB connection failed", exception=db_err)
 
-    with tab_telemetry:
-        st.markdown("### Error Telemetry & Exception Logs")
-        errors = get_recent_errors(limit=12)
+        st.divider()
+
+        # Display system error logs
+        errors = get_recent_errors(limit=8)
+        st.markdown(f"**Recorded System Errors ({len(errors)}):**")
         if errors:
             for err in errors:
                 st.markdown(f"**[{err['timestamp']}] ⚠️ {err['service']}**: {err['message']}")
                 if err.get("technical_details"):
-                    with st.expander(f"Stacktrace (Error #{err['id']})"):
+                    with st.expander(f"View Traceback (Error #{err['id']})"):
                         st.code(err["technical_details"], language="text")
 
-            c_ack, c_clr = st.columns(2)
-            with c_ack:
-                if st.button("Acknowledge All Events", use_container_width=True):
+            c1, c2 = st.columns(2)
+            with c1:
+                if st.button("Acknowledge All", use_container_width=True):
                     acknowledge_all_errors()
-                    st.toast("All error events acknowledged.")
                     st.rerun()
-            with c_clr:
-                if st.button("Clear Error History", use_container_width=True):
+            with c2:
+                if st.button("Clear Log", use_container_width=True):
                     clear_all_errors()
-                    st.toast("Error history purged.")
                     st.rerun()
         else:
-            st.success("All systems operating at 100% nominal performance. Zero errors recorded.")
+            st.info("No system errors recorded. All systems operating normally!")
 
-    with tab_creds:
-        st.markdown("### Cloud API Credentials & Configuration")
-        st.caption("Update cloud runtime keys instantly across all workers.")
-        st_groq_key = st.text_input("Groq API Key (High-Speed LLM)", value=config.GROQ_API_KEY, type="password")
-        st_google_key = st.text_input("Google Gemini API Key (Embeddings)", value=config.GOOGLE_API_KEY, type="password")
-        st_pinecone_key = st.text_input("Pinecone API Key", value=config.PINECONE_API_KEY, type="password")
-        st_index_name = st.text_input("Pinecone Index Name", value=config.PINECONE_INDEX_NAME)
+    # 2. Platform Analytics & Users
+    with st.expander("📊 Platform Metrics & Users", expanded=False):
+        stats = get_admin_platform_stats()
+        c_kpi1, c_kpi2 = st.columns(2)
+        with c_kpi1:
+            st.markdown(f"""
+            <div class="admin-card">
+                <div style="color: #94a3b8; font-size: 0.75em; text-transform: uppercase;">Total Users</div>
+                <div class="admin-stat">{stats['total_users']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="admin-card">
+                <div style="color: #94a3b8; font-size: 0.75em; text-transform: uppercase;">Total Chats</div>
+                <div class="admin-stat">{stats['total_chats']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        with c_kpi2:
+            st.markdown(f"""
+            <div class="admin-card">
+                <div style="color: #94a3b8; font-size: 0.75em; text-transform: uppercase;">Indexed Docs</div>
+                <div class="admin-stat">{stats['total_docs']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.markdown(f"""
+            <div class="admin-card">
+                <div style="color: #94a3b8; font-size: 0.75em; text-transform: uppercase;">Messages</div>
+                <div class="admin-stat">{stats['total_messages']}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-        if st.button("💾 Save Cloud Credentials", use_container_width=True, type="primary"):
+        if stats.get("users_list"):
+            import pandas as pd
+            df = pd.DataFrame(stats["users_list"])
+            df.columns = ["ID", "Username", "Role", "Created", "Docs", "Chats"]
+            st.dataframe(df, use_container_width=True, hide_index=True)
+
+    # 3. Cloud API Credentials Manager
+    with st.expander("🔑 Cloud API Credentials", expanded=False):
+        st.caption("Host-only API key and database configuration:")
+        st_groq_key = st.text_input(
+            "Groq API Key (High-Speed LLM)",
+            value=config.GROQ_API_KEY,
+            type="password",
+        )
+        st_google_key = st.text_input(
+            "Google Gemini API Key (Embeddings)",
+            value=config.GOOGLE_API_KEY,
+            type="password",
+        )
+        st_pinecone_key = st.text_input(
+            "Pinecone API Key",
+            value=config.PINECONE_API_KEY,
+            type="password",
+        )
+        st_index_name = st.text_input(
+            "Pinecone Index Name",
+            value=config.PINECONE_INDEX_NAME,
+        )
+
+        if st.button("💾 Save Credentials", use_container_width=True):
             if (st_groq_key or st_google_key) and st_pinecone_key:
                 config.set_runtime_credentials(
                     google_api_key=st_google_key,
@@ -330,8 +326,10 @@ def render_admin_suite(user: Dict[str, Any]):
                     groq_api_key=st_groq_key,
                 )
                 st.cache_resource.clear()
-                st.toast("Credentials saved successfully!", icon="✅")
+                st.toast("Credentials updated successfully!", icon="✅")
                 st.rerun()
+
+    st.divider()
 
 def main():
     # If user is not authenticated, render login/signup
@@ -364,7 +362,7 @@ def main():
 
     active_session_id = st.session_state.current_session_id
 
-    # Sidebar: User Profile, Navigation, Sessions, Ingestion
+    # Sidebar: Profile, Host Admin Panels (for admin), Chat History, Document Vault
     with st.sidebar:
         # Profile badge
         role_tag = "👑 Master Admin" if is_admin else "⚡ Pro User"
@@ -383,24 +381,17 @@ def main():
             st.session_state.current_session_id = None
             st.rerun()
 
-        # Admin View Navigation Switcher
-        active_view = "workspace"
-        if is_admin:
-            st.divider()
-            nav_choice = st.radio(
-                "Mode Selector",
-                ["💬 Knowledge Assistant", "👑 Master Admin Suite"],
-                index=0,
-                label_visibility="collapsed",
-            )
-            if nav_choice == "👑 Master Admin Suite":
-                active_view = "admin"
-
         st.divider()
 
-        # ==========================================
+        # =========================================================================
+        # 👑 ADMIN PANELS (Restored in sidebar: Diagnostics, Health, Credentials)
+        # =========================================================================
+        if is_admin:
+            render_admin_sidebar_panels()
+
+        # =========================================================================
         # 💬 Chat Sessions Drawer
-        # ==========================================
+        # =========================================================================
         st.markdown("### 💬 Chat History")
         if st.button("➕ New Conversation", use_container_width=True, type="secondary"):
             new_sid = create_chat_session(user_id, "New Chat")
@@ -434,9 +425,9 @@ def main():
 
         st.divider()
 
-        # ==========================================
-        # 📄 Document Ingestion Drawer (Multi-Tenant)
-        # ==========================================
+        # =========================================================================
+        # 📄 Document Ingestion Drawer (Multi-Tenant & Resilient)
+        # =========================================================================
         st.markdown("### 📄 My Document Vault")
         st.caption(f"Tenant namespace: `{user_namespace}`")
 
@@ -455,12 +446,19 @@ def main():
 
         if process_btn:
             try:
+                # 1. Save newly uploaded files to tenant directory
                 if uploaded_files:
                     with st.spinner("Saving uploaded PDF files..."):
                         for uploaded_file in uploaded_files:
                             save_path = user_docs_dir / uploaded_file.name
                             with open(save_path, "wb") as f:
                                 f.write(uploaded_file.getbuffer())
+
+                # If user directory is empty and user is admin, copy sample docs from config.DOCS_DIR
+                if not any(user_docs_dir.glob("*.pdf")) and is_admin:
+                    for sf in config.DOCS_DIR.glob("*.pdf"):
+                        if sf.is_file():
+                            shutil.copy2(sf, user_docs_dir / sf.name)
 
                 with st.spinner(f"Ingesting into cloud namespace '{user_namespace}'..."):
                     docs = load_documents_from_directory(user_docs_dir)
@@ -470,6 +468,12 @@ def main():
                         st.cache_resource.clear()
                         chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
                         embeddings = get_embeddings()
+
+                        # If reset is checked, clean user DB records too
+                        if reset_user_db:
+                            for ed in get_user_documents(user_id):
+                                delete_user_document(user_id, ed["filename"])
+
                         index_documents(
                             documents=chunks,
                             persist_directory=config.CHROMA_PERSIST_DIR,
@@ -477,6 +481,7 @@ def main():
                             recreate=reset_user_db,
                             namespace=user_namespace,
                         )
+
                         # Record documents in user DB
                         file_chunk_map = {}
                         for c in chunks:
@@ -498,6 +503,14 @@ def main():
 
         # List user's ingested documents
         user_docs = get_user_documents(user_id)
+        # If DB is empty, sync with disk/vectorstore
+        if not user_docs and any(user_docs_dir.glob("*.pdf")):
+            pipeline_inst, vector_store_inst = get_user_rag_pipeline(user_namespace)
+            indexed_list = list_indexed_documents(vector_store_inst, docs_dir=user_docs_dir, namespace=user_namespace)
+            for item in indexed_list:
+                record_user_document(user_id, item["filename"], item["chunks"])
+            user_docs = get_user_documents(user_id)
+
         if user_docs:
             st.markdown("**Your Ingested Files:**")
             pipeline_inst, vector_store_inst = get_user_rag_pipeline(user_namespace)
@@ -527,16 +540,22 @@ def main():
         else:
             st.info("No documents currently in your vault. Upload a PDF above to get started.")
 
-    # Main Area Rendering
-    if active_view == "admin":
-        render_admin_suite(user)
-        return
-
-    # Assistant Workspace View
-    pipeline, vector_store = get_user_rag_pipeline(user_namespace)
-
+    # =========================================================================
+    # Main Workspace Chat Area
+    # =========================================================================
     st.title("⚡ AI Knowledge Assistant")
     st.caption(f"Tenant: `@{username}` | Active Memory: `{user_namespace}` | Grounded Answers with Source Citations")
+
+    # Host Alert Banner: Displayed to admin if errors exist
+    if is_admin:
+        unack = get_unacknowledged_count()
+        if unack > 0:
+            st.warning(
+                f"🚨 **Host System Alert**: {unack} service disconnection / error event(s) captured from user sessions. "
+                "Review the **Host Diagnostics & Error Logs** panel in the sidebar."
+            )
+
+    pipeline, vector_store = get_user_rag_pipeline(user_namespace)
 
     # Render Active Session Chat Messages from Neon DB
     messages = get_session_messages(active_session_id)
@@ -572,7 +591,7 @@ def main():
         with st.chat_message("assistant", avatar="🥑"):
             active_key = config.GROQ_API_KEY if config.LLM_PROVIDER == "groq" else config.GOOGLE_API_KEY
             if not active_key:
-                err_msg = "⚠️ AI API Key is unconfigured. Please configure API keys in Master Admin Suite or .env."
+                err_msg = "⚠️ AI API Key is unconfigured. Please configure API keys in Host Administration or .env."
                 st.error(err_msg)
                 add_chat_message(active_session_id, "assistant", err_msg)
             elif pipeline is None:

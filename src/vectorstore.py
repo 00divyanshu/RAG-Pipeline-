@@ -137,10 +137,14 @@ def index_documents(
                 else:
                     index.delete(delete_all=True)
             except Exception as e:
-                logger.warning(f"Error resetting Pinecone index: {e}")
+                if "not found" in str(e).lower() or "404" in str(e):
+                    logger.info(f"Namespace '{namespace}' already empty or does not exist.")
+                else:
+                    logger.warning(f"Error resetting Pinecone index: {e}")
 
         logger.info(f"Indexing {len(documents)} document chunks into cloud Pinecone (namespace='{namespace}')...")
         try:
+            os.environ["PINECONE_API_KEY"] = config.PINECONE_API_KEY
             vector_store = PineconeVectorStore.from_documents(
                 documents=documents,
                 embedding=embeddings,
@@ -204,11 +208,18 @@ def delete_document_by_name(
         class_name = type(vector_store).__name__
         if class_name == "PineconeVectorStore":
             logger.info(f"Deleting '{filename}' from Pinecone cloud index (namespace='{namespace}')...")
-            if namespace:
-                vector_store._index.delete(filter={"filename": {"$eq": filename}}, namespace=namespace)
-            else:
-                vector_store._index.delete(filter={"filename": {"$eq": filename}})
-            success = True
+            try:
+                if namespace:
+                    vector_store._index.delete(filter={"filename": filename}, namespace=namespace)
+                else:
+                    vector_store._index.delete(filter={"filename": filename})
+                success = True
+            except Exception as pe:
+                if "not found" in str(pe).lower() or "404" in str(pe):
+                    logger.info(f"Namespace '{namespace}' not found in Pinecone, skipping vector deletion.")
+                    success = True
+                else:
+                    raise pe
         else:
             # Chroma or standard collection
             logger.info(f"Deleting '{filename}' from vector database...")
