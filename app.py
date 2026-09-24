@@ -11,6 +11,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, Any, List
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src import config
 from src.loader import load_documents_from_directory, SUPPORTED_EXTENSIONS
@@ -94,6 +95,13 @@ if "guest_messages" not in st.session_state:
 if "show_uploader" not in st.session_state:
     st.session_state.show_uploader = False
 
+# Self-contained Base64 SVG Icons for collapsed rail (immune to DOMPurify sanitization)
+SVG_ICON_PANEL = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cmVjdCB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHg9IjMiIHk9IjMiIHJ4PSIyIi8+PHBhdGggZD0iTTkgM3YxOCIvPjwvc3ZnPg=="
+SVG_ICON_NEW_CHAT = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMTIgMjBoOSIvPjxwYXRoIGQ9Ik0xNi41IDMuNWEyLjEyIDIuMTIgMCAwIDEgMyAzTDcgMTlsLTQgMSAxLTRaIi8+PC9zdmc+"
+SVG_ICON_HISTORY = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSI5Ii8+PHBvbHlsaW5lIHBvaW50cz0iMTIgNiAxMiAxMiAxNiAxNCIvPjwvc3ZnPg=="
+SVG_ICON_VAULT = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48cGF0aCBkPSJNMjAgMjBhMiAyIDAgMCAwIDItMlY4YTIgMiAwIDAgMC0yLTJoLTcuOWEyIDIgMCAwIDEtMS42OS0uOUw5LjYgMy45QTIgMiAwIDAgMCA3LjkzIDNINGEyIDIgMCAwIDAtMiAydjEzYTIgMiAwIDAgMCAyIDJaIi8+PC9zdmc+"
+SVG_ICON_SETTINGS = "data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyMCIgaGVpZ2h0PSIyMCIgdmlld0JveD0iMCAwIDI0IDI0IiBmaWxsPSJub25lIiBzdHJva2U9IiM4ODg4ODgiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIj48Y2lyY2xlIGN4PSIxMiIgY3k9IjEyIiByPSIzIi8+PHBhdGggZD0iTTE5LjQgMTVhMS42NSAxLjY1IDAgMCAwIC4zMyAxLjgybC4wNi4wNmEyIDIgMCAwIDEgMCAyLjgzIDIgMiAwIDAgMS0yLjgzIDBsLS4wNi0uMDZhMS42NSAxLjY1IDAgMCAwLTEuODItLjMzIDEuNjUgMS42NSAwIDAgMC0xIDEuNTFWMjFhMiAyIDAgMCAxLTIgMiAyIDIgMCAwIDEtMi0ydi0uMDlBMS42NSAxLjY1IDAgMCAwIDkgMTkuNGExLjY1IDEuNjUgMCAwIDAtMS44Mi4zM2wtLjA2LjA2YTIgMiAwIDAgMS0yLjgzIDAgMiAyIDAgMCAxIDAtMi44M2wuMDYtLjA2YTEuNjUgMS42NSAwIDAgMCAuMzMtMS44MiAxLjY1IDEuNjUgMCAwIDAtMS41MS0xSDNhMiAyIDAgMCAxLTItMiAyIDIgMCAwIDEgMi0yaC4wOUExLjY1IDEuNjUgMCAwIDAgNC42IDlhMS42NSAxLjY1IDAgMCAwLS4zMy0xLjgybC0uMDYtLjA2YTIgMiAwIDAgMSAwLTIuODMgMiAyIDAgMCAxIDIuODMgMGwuMDYuMDZhMS42NSAxLjY1IDAgMCAwIDEuODIuMzNIOWExLjY1IDEuNjUgMCAwIDAgMS0xLjUxVjNhMiAyIDAgMCAxIDItMiAyIDIgMCAwIDEgMiAydi4wOWExLjY1IDEuNjUgMCAwIDAgMSAxLjUxIDEuNjUgMS42NSAwIDAgMCAxLjgyLS4zM2wuMDYtLjA2YTIgMiAwIDAgMSAyLjgzIDAgMiAyIDAgMCAxIDAgMi44M2wtLjA2LjA2YTEuNjUgMS42NSAwIDAgMC0uMzMgMS44MlY5YTEuNjUgMS42NSAwIDAgMCAxLjUxIDFIMjFhMiAyIDAgMCAxIDIgMiAyIDIgMCAwIDEtMiAyaC0uMDlhMS42NSAxLjY1IDAgMCAwLTEuNTEgMXoiLz48L3N2Zz4="
+
 def apply_app_theme(theme_choice: str):
     """
     Applies dynamic Dark, Light, or Device/System CSS styling across all components
@@ -122,11 +130,41 @@ div[data-testid="stToolbar"] {
     background: transparent !important; 
     pointer-events: none !important;
 }
-button[data-testid="stExpandSidebarButton"] {
+/* Sidebar Collapsed Control & Expand Button: Seamless full-height left click area */
+div[data-testid="stSidebarCollapsedControl"] {
+    display: block !important;
     position: fixed !important;
-    top: -200px !important;
-    left: -200px !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 48px !important;
+    height: 100vh !important;
+    z-index: 99980 !important;
+    background: transparent !important;
+    pointer-events: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+button[data-testid="stExpandSidebarButton"] {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 48px !important;
+    height: 100vh !important;
     opacity: 0 !important;
+    z-index: 99980 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    background: transparent !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    visibility: visible !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) div[data-testid="stSidebarCollapsedControl"],
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) button[data-testid="stExpandSidebarButton"] {
+    display: none !important;
     pointer-events: none !important;
 }
 div[data-testid="stSidebarHeader"] {
@@ -165,12 +203,14 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     z-index: 99990;
     box-sizing: border-box;
     user-select: none;
+    pointer-events: auto;
 }
 .collapsed-rail .rail-top, .collapsed-rail .rail-bottom {
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
+    pointer-events: auto;
 }
 .collapsed-rail .rail-item {
     width: 36px;
@@ -180,36 +220,39 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     justify-content: center;
     border-radius: 10px;
     cursor: pointer;
-    color: #374151 !important;
     margin-bottom: 6px;
     background: transparent !important;
-    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    transition: background 0.15s ease, transform 0.15s ease;
+    pointer-events: auto;
 }
-.collapsed-rail .rail-item svg,
-.collapsed-rail .rail-item svg * {
-    stroke: currentColor !important;
-    stroke-width: 2 !important;
-    stroke-linecap: round !important;
-    stroke-linejoin: round !important;
-    fill: none !important;
+.collapsed-rail .rail-item img.rail-icon {
+    display: block !important;
+    width: 20px !important;
+    height: 20px !important;
+    filter: brightness(0) opacity(0.70) !important;
+    transition: filter 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 .collapsed-rail .rail-item:hover {
     background: rgba(0, 0, 0, 0.08) !important;
-    color: #111827 !important;
 }
-.collapsed-rail .rail-item:hover svg,
-.collapsed-rail .rail-item:hover svg * {
-    stroke: #111827 !important;
+.collapsed-rail .rail-item:hover img.rail-icon {
+    filter: brightness(0) opacity(1) !important;
+    transform: scale(1.1);
 }
 .collapsed-rail .rail-logo {
     font-size: 1.45rem;
     cursor: pointer;
     margin-bottom: 12px;
+    transition: transform 0.15s ease;
+}
+.collapsed-rail .rail-logo:hover {
+    transform: scale(1.15);
 }
 .collapsed-rail .rail-free-space {
     flex-grow: 1;
     width: 100%;
     cursor: pointer;
+    pointer-events: auto;
 }
 .collapsed-rail .rail-avatar {
     width: 30px;
@@ -219,6 +262,9 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     color: #ffffff !important;
     font-weight: 700;
     font-size: 0.82rem;
+}
+.collapsed-rail .rail-avatar:hover {
+    transform: scale(1.08);
 }
 
 /* Zero-Lag Pure CSS Instant Visibility */
@@ -241,22 +287,8 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
     box-shadow: none !important;
     background: transparent !important;
 }
-div[data-testid="stSidebarCollapsedControl"] {
-    display: none !important;
-}
 
-/* Mobile View: No strip, only top-left logo opener */
-.mobile-logo-opener {
-    display: none;
-    position: fixed;
-    top: 10px;
-    left: 12px;
-    z-index: 99999;
-    cursor: pointer;
-    user-select: none;
-    font-size: 1.6rem;
-    padding: 2px;
-}
+/* Mobile View: No strip, only top-left avocado logo opener */
 @media (max-width: 768px) {
     .collapsed-rail {
         display: none !important;
@@ -264,11 +296,40 @@ div[data-testid="stSidebarCollapsedControl"] {
         pointer-events: none !important;
         width: 0 !important;
     }
-    body:has(section[data-testid="stSidebar"][aria-expanded="false"]) .mobile-logo-opener {
-        display: flex !important;
+    div[data-testid="stSidebarCollapsedControl"] {
+        display: block !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+        z-index: 99999 !important;
+        background: transparent !important;
+        pointer-events: auto !important;
     }
-    body:has(section[data-testid="stSidebar"][aria-expanded="true"]) .mobile-logo-opener {
+    button[data-testid="stExpandSidebarButton"] {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+        opacity: 1 !important;
+        z-index: 99999 !important;
+        background: transparent !important;
+        border: none !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+        visibility: visible !important;
+    }
+    button[data-testid="stExpandSidebarButton"] svg {
         display: none !important;
+    }
+    button[data-testid="stExpandSidebarButton"]::after {
+        content: "🥑" !important;
+        font-size: 1.6rem !important;
     }
     section.main {
         margin-left: 0px !important;
@@ -276,6 +337,17 @@ div[data-testid="stSidebarCollapsedControl"] {
         padding-right: 1rem !important;
         padding-top: 2rem !important;
     }
+}
+
+iframe[title="streamlit_components.v1.html"] {
+    display: none !important;
+    position: fixed !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    width: 0 !important;
+    height: 0 !important;
+    border: none !important;
+    pointer-events: none !important;
 }
 
 /* Light Theme Variables */
@@ -440,11 +512,41 @@ div[data-testid="stToolbar"] {
     background: transparent !important; 
     pointer-events: none !important;
 }
-button[data-testid="stExpandSidebarButton"] {
+/* Sidebar Collapsed Control & Expand Button: Seamless full-height left click area */
+div[data-testid="stSidebarCollapsedControl"] {
+    display: block !important;
     position: fixed !important;
-    top: -200px !important;
-    left: -200px !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 48px !important;
+    height: 100vh !important;
+    z-index: 99980 !important;
+    background: transparent !important;
+    pointer-events: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+button[data-testid="stExpandSidebarButton"] {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 48px !important;
+    height: 100vh !important;
     opacity: 0 !important;
+    z-index: 99980 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    background: transparent !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    visibility: visible !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) div[data-testid="stSidebarCollapsedControl"],
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) button[data-testid="stExpandSidebarButton"] {
+    display: none !important;
     pointer-events: none !important;
 }
 div[data-testid="stSidebarHeader"] {
@@ -483,12 +585,14 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     z-index: 99990;
     box-sizing: border-box;
     user-select: none;
+    pointer-events: auto;
 }
 .collapsed-rail .rail-top, .collapsed-rail .rail-bottom {
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
+    pointer-events: auto;
 }
 .collapsed-rail .rail-item {
     width: 36px;
@@ -498,36 +602,41 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     justify-content: center;
     border-radius: 10px;
     cursor: pointer;
-    color: #d1d5db !important;
     margin-bottom: 6px;
     background: transparent !important;
-    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    transition: background 0.15s ease, transform 0.15s ease;
+    pointer-events: auto;
 }
-.collapsed-rail .rail-item svg,
-.collapsed-rail .rail-item svg * {
-    stroke: currentColor !important;
-    stroke-width: 2 !important;
-    stroke-linecap: round !important;
-    stroke-linejoin: round !important;
-    fill: none !important;
+.collapsed-rail .rail-item img.rail-icon {
+    display: block !important;
+    width: 20px !important;
+    height: 20px !important;
+    filter: brightness(0) invert(0.92) !important;
+    opacity: 0.90 !important;
+    transition: filter 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 .collapsed-rail .rail-item:hover {
     background: rgba(255, 255, 255, 0.12) !important;
-    color: #ffffff !important;
 }
-.collapsed-rail .rail-item:hover svg,
-.collapsed-rail .rail-item:hover svg * {
-    stroke: #ffffff !important;
+.collapsed-rail .rail-item:hover img.rail-icon {
+    filter: brightness(0) invert(1) !important;
+    opacity: 1 !important;
+    transform: scale(1.1);
 }
 .collapsed-rail .rail-logo {
     font-size: 1.45rem;
     cursor: pointer;
     margin-bottom: 12px;
+    transition: transform 0.15s ease;
+}
+.collapsed-rail .rail-logo:hover {
+    transform: scale(1.15);
 }
 .collapsed-rail .rail-free-space {
     flex-grow: 1;
     width: 100%;
     cursor: pointer;
+    pointer-events: auto;
 }
 .collapsed-rail .rail-avatar {
     width: 30px;
@@ -537,6 +646,9 @@ button[data-testid="stSidebarCollapseButton"]:hover {
     color: #ffffff !important;
     font-weight: 700;
     font-size: 0.82rem;
+}
+.collapsed-rail .rail-avatar:hover {
+    transform: scale(1.08);
 }
 
 /* Zero-Lag Pure CSS Instant Visibility */
@@ -559,22 +671,8 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
     box-shadow: none !important;
     background: transparent !important;
 }
-div[data-testid="stSidebarCollapsedControl"] {
-    display: none !important;
-}
 
-/* Mobile View: No strip, only top-left logo opener */
-.mobile-logo-opener {
-    display: none;
-    position: fixed;
-    top: 10px;
-    left: 12px;
-    z-index: 99999;
-    cursor: pointer;
-    user-select: none;
-    font-size: 1.6rem;
-    padding: 2px;
-}
+/* Mobile View: No strip, only top-left avocado logo opener */
 @media (max-width: 768px) {
     .collapsed-rail {
         display: none !important;
@@ -582,11 +680,40 @@ div[data-testid="stSidebarCollapsedControl"] {
         pointer-events: none !important;
         width: 0 !important;
     }
-    body:has(section[data-testid="stSidebar"][aria-expanded="false"]) .mobile-logo-opener {
-        display: flex !important;
+    div[data-testid="stSidebarCollapsedControl"] {
+        display: block !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+        z-index: 99999 !important;
+        background: transparent !important;
+        pointer-events: auto !important;
     }
-    body:has(section[data-testid="stSidebar"][aria-expanded="true"]) .mobile-logo-opener {
+    button[data-testid="stExpandSidebarButton"] {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+        opacity: 1 !important;
+        z-index: 99999 !important;
+        background: transparent !important;
+        border: none !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+        visibility: visible !important;
+    }
+    button[data-testid="stExpandSidebarButton"] svg {
         display: none !important;
+    }
+    button[data-testid="stExpandSidebarButton"]::after {
+        content: "🥑" !important;
+        font-size: 1.6rem !important;
     }
     section.main {
         margin-left: 0px !important;
@@ -594,6 +721,17 @@ div[data-testid="stSidebarCollapsedControl"] {
         padding-right: 1rem !important;
         padding-top: 2rem !important;
     }
+}
+
+iframe[title="streamlit_components.v1.html"] {
+    display: none !important;
+    position: fixed !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    width: 0 !important;
+    height: 0 !important;
+    border: none !important;
+    pointer-events: none !important;
 }
 
 /* Dark Theme Variables */
@@ -746,11 +884,41 @@ div[data-testid="stToolbar"] {
     background: transparent !important; 
     pointer-events: none !important;
 }
-button[data-testid="stExpandSidebarButton"] {
+/* Sidebar Collapsed Control & Expand Button: Seamless full-height left click area */
+div[data-testid="stSidebarCollapsedControl"] {
+    display: block !important;
     position: fixed !important;
-    top: -200px !important;
-    left: -200px !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 48px !important;
+    height: 100vh !important;
+    z-index: 99980 !important;
+    background: transparent !important;
+    pointer-events: auto !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+}
+button[data-testid="stExpandSidebarButton"] {
+    display: block !important;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 48px !important;
+    height: 100vh !important;
     opacity: 0 !important;
+    z-index: 99980 !important;
+    cursor: pointer !important;
+    pointer-events: auto !important;
+    background: transparent !important;
+    border: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    visibility: visible !important;
+}
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) div[data-testid="stSidebarCollapsedControl"],
+body:has(section[data-testid="stSidebar"][aria-expanded="true"]) button[data-testid="stExpandSidebarButton"] {
+    display: none !important;
     pointer-events: none !important;
 }
 div[data-testid="stSidebarHeader"] {
@@ -785,12 +953,14 @@ button[data-testid="stSidebarCollapseButton"] {
     z-index: 99990;
     box-sizing: border-box;
     user-select: none;
+    pointer-events: auto;
 }
 .collapsed-rail .rail-top, .collapsed-rail .rail-bottom {
     display: flex;
     flex-direction: column;
     align-items: center;
     width: 100%;
+    pointer-events: auto;
 }
 .collapsed-rail .rail-item {
     width: 36px;
@@ -802,25 +972,29 @@ button[data-testid="stSidebarCollapseButton"] {
     cursor: pointer;
     margin-bottom: 6px;
     background: transparent !important;
-    transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease;
+    transition: background 0.15s ease, transform 0.15s ease;
+    pointer-events: auto;
 }
-.collapsed-rail .rail-item svg,
-.collapsed-rail .rail-item svg * {
-    stroke: currentColor !important;
-    stroke-width: 2 !important;
-    stroke-linecap: round !important;
-    stroke-linejoin: round !important;
-    fill: none !important;
+.collapsed-rail .rail-item img.rail-icon {
+    display: block !important;
+    width: 20px !important;
+    height: 20px !important;
+    transition: filter 0.15s ease, opacity 0.15s ease, transform 0.15s ease;
 }
 .collapsed-rail .rail-logo {
     font-size: 1.45rem;
     cursor: pointer;
     margin-bottom: 12px;
+    transition: transform 0.15s ease;
+}
+.collapsed-rail .rail-logo:hover {
+    transform: scale(1.15);
 }
 .collapsed-rail .rail-free-space {
     flex-grow: 1;
     width: 100%;
     cursor: pointer;
+    pointer-events: auto;
 }
 .collapsed-rail .rail-avatar {
     width: 30px;
@@ -830,6 +1004,9 @@ button[data-testid="stSidebarCollapseButton"] {
     color: #ffffff !important;
     font-weight: 700;
     font-size: 0.82rem;
+}
+.collapsed-rail .rail-avatar:hover {
+    transform: scale(1.08);
 }
 
 /* Zero-Lag Pure CSS Instant Visibility */
@@ -852,22 +1029,8 @@ section[data-testid="stSidebar"][aria-expanded="false"] {
     box-shadow: none !important;
     background: transparent !important;
 }
-div[data-testid="stSidebarCollapsedControl"] {
-    display: none !important;
-}
 
-/* Mobile View: No strip, only top-left logo opener */
-.mobile-logo-opener {
-    display: none;
-    position: fixed;
-    top: 10px;
-    left: 12px;
-    z-index: 99999;
-    cursor: pointer;
-    user-select: none;
-    font-size: 1.6rem;
-    padding: 2px;
-}
+/* Mobile View: No strip, only top-left avocado logo opener */
 @media (max-width: 768px) {
     .collapsed-rail {
         display: none !important;
@@ -875,11 +1038,40 @@ div[data-testid="stSidebarCollapsedControl"] {
         pointer-events: none !important;
         width: 0 !important;
     }
-    body:has(section[data-testid="stSidebar"][aria-expanded="false"]) .mobile-logo-opener {
-        display: flex !important;
+    div[data-testid="stSidebarCollapsedControl"] {
+        display: block !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+        z-index: 99999 !important;
+        background: transparent !important;
+        pointer-events: auto !important;
     }
-    body:has(section[data-testid="stSidebar"][aria-expanded="true"]) .mobile-logo-opener {
+    button[data-testid="stExpandSidebarButton"] {
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        position: fixed !important;
+        top: 10px !important;
+        left: 12px !important;
+        width: 44px !important;
+        height: 44px !important;
+        opacity: 1 !important;
+        z-index: 99999 !important;
+        background: transparent !important;
+        border: none !important;
+        cursor: pointer !important;
+        pointer-events: auto !important;
+        visibility: visible !important;
+    }
+    button[data-testid="stExpandSidebarButton"] svg {
         display: none !important;
+    }
+    button[data-testid="stExpandSidebarButton"]::after {
+        content: "🥑" !important;
+        font-size: 1.6rem !important;
     }
     section.main {
         margin-left: 0px !important;
@@ -887,6 +1079,17 @@ div[data-testid="stSidebarCollapsedControl"] {
         padding-right: 1rem !important;
         padding-top: 2rem !important;
     }
+}
+
+iframe[title="streamlit_components.v1.html"] {
+    display: none !important;
+    position: fixed !important;
+    top: -9999px !important;
+    left: -9999px !important;
+    width: 0 !important;
+    height: 0 !important;
+    border: none !important;
+    pointer-events: none !important;
 }
 
 @media (prefers-color-scheme: light) {
@@ -900,10 +1103,9 @@ div[data-testid="stSidebarCollapsedControl"] {
     .citation-card { background-color: #f1f5f9 !important; border-left: 3px solid #059669 !important; color: #1e293b !important; }
     .hero-title { color: #1f1f1f !important; }
     .hero-sub { color: #444746 !important; }
-    .collapsed-rail .rail-item { color: #374151 !important; }
-    .collapsed-rail .rail-item svg { stroke: #374151 !important; }
-    .collapsed-rail .rail-item:hover { background: rgba(0, 0, 0, 0.08) !important; color: #111827 !important; }
-    .collapsed-rail .rail-item:hover svg { stroke: #111827 !important; }
+    .collapsed-rail .rail-item img.rail-icon { filter: brightness(0) opacity(0.70) !important; }
+    .collapsed-rail .rail-item:hover img.rail-icon { filter: brightness(0) opacity(1) !important; transform: scale(1.1); }
+    .collapsed-rail .rail-item:hover { background: rgba(0, 0, 0, 0.08) !important; }
     button[data-testid="stSidebarCollapseButton"] { color: #1f1f1f !important; }
     button[data-testid="stSidebarCollapseButton"]:hover { background: #e0e4eb !important; }
 }
@@ -918,10 +1120,9 @@ div[data-testid="stSidebarCollapsedControl"] {
     .citation-card { background-color: rgba(255, 255, 255, 0.04) !important; border-left: 3px solid #10b981 !important; color: #e2e8f0 !important; }
     .hero-title { color: #f0f4f9 !important; }
     .hero-sub { color: #c4c7c5 !important; }
-    .collapsed-rail .rail-item { color: #d1d5db !important; }
-    .collapsed-rail .rail-item svg { stroke: #d1d5db !important; }
-    .collapsed-rail .rail-item:hover { background: rgba(255, 255, 255, 0.12) !important; color: #ffffff !important; }
-    .collapsed-rail .rail-item:hover svg { stroke: #ffffff !important; }
+    .collapsed-rail .rail-item img.rail-icon { filter: brightness(0) invert(0.92) !important; opacity: 0.90 !important; }
+    .collapsed-rail .rail-item:hover img.rail-icon { filter: brightness(0) invert(1) !important; transform: scale(1.1); }
+    .collapsed-rail .rail-item:hover { background: rgba(255, 255, 255, 0.12) !important; }
     button[data-testid="stSidebarCollapseButton"] { color: #f0f4f9 !important; }
     button[data-testid="stSidebarCollapseButton"]:hover { background: #282a2c !important; }
 }
@@ -1238,95 +1439,110 @@ def get_format_icon(filename: str) -> str:
 def render_collapsed_sidebar_rail(username: str, role_label: str, initial_letter: str):
     """
     Renders the persistent collapsed icon rail on the left side of the screen.
-    Includes Avocado logo, toggle button, new chat, search, document vault, settings,
-    and profile avatar. Pure CSS manages visibility without background setInterval lag.
-    On mobile, renders a floating top-left logo opener instead of the full strip.
+    Uses high-fidelity base64 SVG images rendered via <img> tags so DOMPurify
+    never strips them, ensuring crisp rendering across Dark and Light themes.
+    Clicking anywhere on the rail (including icons and free space) smoothly opens the sidebar.
+    On mobile, renders a floating top-left avocado logo that opens the sidebar on tap.
     """
     rail_html = f"""
     <!-- Desktop Collapsed Sidebar Rail (Transparent, blends with background) -->
     <div id="collapsed-sidebar-rail" class="collapsed-rail">
       <div class="rail-top">
-        <div class="rail-item rail-logo" onclick="openSidebar()" title="AI Assistant - Open Sidebar">🥑</div>
-        <div class="rail-item" onclick="openSidebar()" title="Expand Sidebar">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M9 3v18"></path>
-          </svg>
+        <div class="rail-item rail-logo" data-rail-action="expand" title="AI Assistant - Open Sidebar">🥑</div>
+        <div class="rail-item" data-rail-action="expand" title="Open Sidebar">
+          <img src="{SVG_ICON_PANEL}" width="20" height="20" class="rail-icon" alt="Expand Sidebar" />
         </div>
-        <div class="rail-item" onclick="triggerNewChat()" title="New chat">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
-          </svg>
+        <div class="rail-item" data-rail-action="new_chat" title="New chat">
+          <img src="{SVG_ICON_NEW_CHAT}" width="20" height="20" class="rail-icon" alt="New chat" />
         </div>
-        <div class="rail-item" onclick="openSidebar()" title="Recent chats">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path>
-          </svg>
+        <div class="rail-item" data-rail-action="expand" title="Recent chats">
+          <img src="{SVG_ICON_HISTORY}" width="20" height="20" class="rail-icon" alt="Recent chats" />
         </div>
-        <div class="rail-item" onclick="openSidebar()" title="Document Vault">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"></path>
-          </svg>
+        <div class="rail-item" data-rail-action="expand" title="Document Vault">
+          <img src="{SVG_ICON_VAULT}" width="20" height="20" class="rail-icon" alt="Document Vault" />
         </div>
       </div>
       
       <!-- Free space along the sidebar line: clicking anywhere here opens the sidebar -->
-      <div class="rail-free-space" onclick="openSidebar()" title="Click anywhere along this line to open sidebar"></div>
+      <div class="rail-free-space" data-rail-action="expand" title="Click anywhere along this line to open sidebar"></div>
       
       <div class="rail-bottom">
-        <div class="rail-item" onclick="triggerSettings()" title="Settings &amp; Preferences">
-          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="3"></circle>
-            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-          </svg>
+        <div class="rail-item" data-rail-action="settings" title="Settings &amp; Preferences">
+          <img src="{SVG_ICON_SETTINGS}" width="20" height="20" class="rail-icon" alt="Settings" />
         </div>
-        <div class="rail-item rail-avatar" onclick="triggerSettings()" title="{username} ({role_label})">
+        <div class="rail-item rail-avatar" data-rail-action="settings" title="{username} ({role_label})">
           {initial_letter}
         </div>
       </div>
     </div>
 
     <!-- Mobile-Only Compact Sidebar Opener (Top-Left) -->
-    <div id="mobile-sidebar-opener" class="mobile-logo-opener" onclick="openSidebar()" title="Open Sidebar">
+    <div id="mobile-sidebar-opener" class="mobile-logo-opener" data-rail-action="expand" title="Open Sidebar">
       🥑
     </div>
+    """
+    st.html(rail_html)
 
+    # Attach delegated click handler via components.html so it executes in window.parent without DOMPurify stripping
+    script_html = """
     <script>
-    window.openSidebar = function() {{
-        var expBtn = document.querySelector('button[data-testid="stExpandSidebarButton"]');
-        if (expBtn) {{
-            expBtn.click();
-            return;
-        }}
-        var sb = document.querySelector('section[data-testid="stSidebar"]');
-        if (sb && sb.getAttribute('aria-expanded') === 'false') {{
-            var collapseBtn = sb.querySelector('button[data-testid="stSidebarCollapseButton"]');
-            if (collapseBtn) collapseBtn.click();
-        }}
-    }};
-
-    window.triggerNewChat = function() {{
-        window.openSidebar();
-        setTimeout(function() {{
-            var btns = Array.from(document.querySelectorAll('section[data-testid="stSidebar"] button'));
-            var newChatBtn = btns.find(b => b.textContent && b.textContent.includes('New chat'));
-            if (newChatBtn) newChatBtn.click();
-        }}, 120);
-    }};
-
-    window.triggerSettings = function() {{
-        window.openSidebar();
-        setTimeout(function() {{
-            var expanders = Array.from(document.querySelectorAll('section[data-testid="stSidebar"] details'));
-            var settingsExp = expanders.find(e => e.textContent && e.textContent.includes('Settings'));
-            if (settingsExp) {{
-                settingsExp.open = true;
-                settingsExp.scrollIntoView({{ behavior: 'smooth' }});
-            }}
-        }}, 120);
-    }};
+    (function() {
+        try {
+            var doc = window.parent.document;
+            if (!doc || doc._railBinderAttached) return;
+            doc._railBinderAttached = true;
+            
+            doc.addEventListener('click', function(e) {
+                var target = e.target;
+                if (!target) return;
+                
+                var actionEl = target.closest && target.closest('[data-rail-action], .rail-item, .rail-free-space, .collapsed-rail, .mobile-logo-opener');
+                if (!actionEl) return;
+                
+                var action = actionEl.getAttribute('data-rail-action') || 'expand';
+                
+                // Helper to expand sidebar natively
+                function expandSidebar() {
+                    var expBtn = doc.querySelector('button[data-testid="stExpandSidebarButton"]');
+                    if (expBtn) {
+                        expBtn.click();
+                        return true;
+                    }
+                    var sb = doc.querySelector('section[data-testid="stSidebar"]');
+                    if (sb && sb.getAttribute('aria-expanded') === 'false') {
+                        var colBtn = sb.querySelector('button[data-testid="stSidebarCollapseButton"]');
+                        if (colBtn) colBtn.click();
+                        return true;
+                    }
+                    return false;
+                }
+                
+                expandSidebar();
+                
+                if (action === 'new_chat') {
+                    setTimeout(function() {
+                        var btns = Array.from(doc.querySelectorAll('section[data-testid="stSidebar"] button'));
+                        var newChatBtn = btns.find(b => b.textContent && b.textContent.includes('New chat'));
+                        if (newChatBtn) newChatBtn.click();
+                    }, 150);
+                } else if (action === 'settings') {
+                    setTimeout(function() {
+                        var expanders = Array.from(doc.querySelectorAll('section[data-testid="stSidebar"] details'));
+                        var settingsExp = expanders.find(ex => ex.textContent && ex.textContent.includes('Settings'));
+                        if (settingsExp) {
+                            settingsExp.open = true;
+                            settingsExp.scrollIntoView({ behavior: 'smooth' });
+                        }
+                    }, 150);
+                }
+            }, true);
+        } catch(err) {
+            console.error("Rail binder err:", err);
+        }
+    })();
     </script>
     """
-    st.html(rail_html, unsafe_allow_javascript=True)
+    components.html(script_html, height=0)
 
 
 def main():
