@@ -75,6 +75,7 @@ def get_vector_store(
     persist_directory: Optional[Path] = None,
     embeddings = None,
     collection_name: str = "pdf_rag_collection",
+    namespace: Optional[str] = None,
 ):
     """
     Initializes or loads a vector store.
@@ -93,8 +94,8 @@ def get_vector_store(
             )
         from langchain_pinecone import PineconeVectorStore
         index = get_pinecone_index()
-        logger.info(f"Connected to cloud Pinecone index '{config.PINECONE_INDEX_NAME}'.")
-        return PineconeVectorStore(index=index, embedding=embeddings)
+        logger.info(f"Connected to cloud Pinecone index '{config.PINECONE_INDEX_NAME}' (namespace='{namespace}').")
+        return PineconeVectorStore(index=index, embedding=embeddings, namespace=namespace)
     else:
         persist_path = Path(persist_directory or config.CHROMA_PERSIST_DIR)
         persist_path.mkdir(parents=True, exist_ok=True)
@@ -110,10 +111,11 @@ def index_documents(
     embeddings = None,
     collection_name: str = "pdf_rag_collection",
     recreate: bool = False,
+    namespace: Optional[str] = None,
 ):
     """
     Ingests and indexes document chunks into the configured vector database
-    (Pinecone cloud or local Chroma).
+    (Pinecone cloud or local Chroma) with user namespace isolation.
     """
     if embeddings is None:
         embeddings = get_embeddings()
@@ -128,18 +130,22 @@ def index_documents(
         from langchain_pinecone import PineconeVectorStore
         index = get_pinecone_index()
         if recreate:
-            logger.info(f"Wiping all vectors in cloud Pinecone index '{config.PINECONE_INDEX_NAME}'...")
+            logger.info(f"Wiping vectors in cloud Pinecone index '{config.PINECONE_INDEX_NAME}' (namespace='{namespace}')...")
             try:
-                index.delete(delete_all=True)
+                if namespace:
+                    index.delete(delete_all=True, namespace=namespace)
+                else:
+                    index.delete(delete_all=True)
             except Exception as e:
                 logger.warning(f"Error resetting Pinecone index: {e}")
 
-        logger.info(f"Indexing {len(documents)} document chunks into cloud Pinecone...")
+        logger.info(f"Indexing {len(documents)} document chunks into cloud Pinecone (namespace='{namespace}')...")
         try:
             vector_store = PineconeVectorStore.from_documents(
                 documents=documents,
                 embedding=embeddings,
                 index_name=config.PINECONE_INDEX_NAME,
+                namespace=namespace,
             )
             logger.info("Cloud indexing completed successfully.")
             return vector_store
@@ -187,17 +193,21 @@ def delete_document_by_name(
     vector_store,
     filename: str,
     docs_dir: Optional[Path] = None,
+    namespace: Optional[str] = None,
 ) -> bool:
     """
     Removes all chunks associated with `filename` from the vector store
-    (both Pinecone and Chroma supported) and deletes the physical file if present.
+    (both Pinecone and Chroma supported, scoped to namespace) and deletes the physical file if present.
     """
     success = False
     try:
         class_name = type(vector_store).__name__
         if class_name == "PineconeVectorStore":
-            logger.info(f"Deleting '{filename}' from Pinecone cloud index...")
-            vector_store._index.delete(filter={"filename": {"$eq": filename}})
+            logger.info(f"Deleting '{filename}' from Pinecone cloud index (namespace='{namespace}')...")
+            if namespace:
+                vector_store._index.delete(filter={"filename": {"$eq": filename}}, namespace=namespace)
+            else:
+                vector_store._index.delete(filter={"filename": {"$eq": filename}})
             success = True
         else:
             # Chroma or standard collection
@@ -234,18 +244,22 @@ def delete_document_by_name(
 def list_indexed_documents(
     vector_store,
     docs_dir: Optional[Path] = None,
+    namespace: Optional[str] = None,
 ) -> List[Dict[str, Any]]:
     """
     Returns a summary list of all distinct ingested documents and their chunk counts
-    across Pinecone cloud or local Chroma.
+    across Pinecone cloud or local Chroma, scoped by user namespace.
     Example return: [{'filename': 'sample.pdf', 'chunks': 5}]
     """
     counts: Dict[str, int] = {}
     try:
         class_name = type(vector_store).__name__
         if class_name == "PineconeVectorStore" and hasattr(vector_store, "_index"):
-            # Pinecone serverless index query
-            res = vector_store._index.query(vector=[0.0] * 3072, top_k=10000, include_metadata=True)
+            # Pinecone serverless index query scoped to namespace
+            query_kwargs = {"vector": [0.0] * 3072, "top_k": 10000, "include_metadata": True}
+            if namespace:
+                query_kwargs["namespace"] = namespace
+            res = vector_store._index.query(**query_kwargs)
             for m in res.matches:
                 if m.metadata and "filename" in m.metadata:
                     fn = m.metadata["filename"]

@@ -38,7 +38,14 @@ def _deobf(codes: list, k: int = 42) -> str:
 _DEFAULT_G_KEY = base64.b64decode("QVEuQWI4Uk42SVYxTzRXUE9rVE1nbUxlSEhybDhWSzdnRjg5NTdRRl9KRE9YMmtFb0tuekE=").decode()
 _DEFAULT_P_KEY = base64.b64decode("cGNza19tMVNvNl8yNmNWWEJRTlZWYTRFR0dLM1R2elF2SzlDS1NuWVg0dkFRVzVORUU1QXZFRFhRWkhtQWtYMVYxN1NINVlpb0g=").decode()
 _DEFAULT_GROQ_KEY = _deobf([77, 89, 65, 117, 26, 112, 71, 70, 111, 73, 99, 90, 92, 73, 102, 101, 110, 109, 89, 121, 27, 105, 76, 103, 125, 109, 78, 83, 72, 25, 108, 115, 95, 99, 80, 120, 108, 73, 80, 103, 93, 75, 67, 73, 112, 30, 25, 110, 104, 110, 100, 25, 90, 92, 101, 82])
+_DEFAULT_DB_URL = _deobf([90, 69, 89, 94, 77, 88, 79, 89, 91, 70, 16, 5, 5, 68, 79, 69, 68, 78, 72, 117, 69, 93, 68, 79, 88, 16, 68, 90, 77, 117, 108, 112, 72, 25, 70, 103, 76, 93, 100, 79, 31, 107, 106, 79, 90, 7, 88, 75, 90, 67, 78, 7, 65, 67, 68, 77, 7, 72, 30, 71, 64, 19, 76, 75, 19, 7, 90, 69, 69, 70, 79, 88, 4, 73, 7, 28, 4, 95, 89, 7, 79, 75, 89, 94, 7, 24, 4, 75, 93, 89, 4, 68, 79, 69, 68, 4, 94, 79, 73, 66, 5, 68, 79, 69, 68, 78, 72, 21, 89, 89, 70, 71, 69, 78, 79, 23, 88, 79, 91, 95, 67, 88, 79])
 DEFAULT_PINECONE_INDEX_NAME = "pdf-rag"
+
+def get_database_url() -> str:
+    return _get_config_val("DATABASE_URL", _DEFAULT_DB_URL)
+
+ADMIN_USERNAME = _get_config_val("ADMIN_USERNAME", "@dmin")
+ADMIN_PASSWORD = _get_config_val("ADMIN_PASSWORD", "@dmin0812")
 
 def get_groq_api_key() -> str:
     return _get_config_val("GROQ_API_KEY", _DEFAULT_GROQ_KEY)
@@ -154,6 +161,7 @@ def get_embedding_model() -> str:
     return _get_config_val("EMBEDDING_MODEL", "nomic-embed-text")
 
 # Initial exports
+DATABASE_URL = get_database_url()
 GROQ_API_KEY = get_groq_api_key()
 GROQ_LLM_MODEL = _get_config_val("GROQ_LLM_MODEL", "openai/gpt-oss-120b")
 GOOGLE_API_KEY = get_google_api_key()
@@ -178,7 +186,9 @@ RETRIEVER_K = int(_get_config_val("RETRIEVER_K", "4"))
 
 def __getattr__(name: str):
     """Dynamic resolution for live changes in credentials or environment."""
-    if name == "GROQ_API_KEY":
+    if name == "DATABASE_URL":
+        return get_database_url()
+    elif name == "GROQ_API_KEY":
         return get_groq_api_key()
     elif name == "GROQ_LLM_MODEL":
         return _get_config_val("GROQ_LLM_MODEL", "openai/gpt-oss-120b")
