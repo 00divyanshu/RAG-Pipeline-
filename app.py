@@ -104,20 +104,115 @@ def apply_app_theme(theme_choice: str):
     if theme_choice == "light":
         css_payload = """
 <style>
-/* Privacy: Hide GitHub link, deploy button, and hamburger menu */
-div[data-testid="stToolbar"] { display: none !important; visibility: hidden !important; }
-#MainMenu { display: none !important; visibility: hidden !important; }
-footer { display: none !important; visibility: hidden !important; }
-.stDeployButton { display: none !important; visibility: hidden !important; }
-a[href*="github.com"] { display: none !important; visibility: hidden !important; }
-header[data-testid="stHeader"] { background: transparent !important; }
-div[data-testid="stSidebarCollapsedControl"] {
+/* Privacy: Hide GitHub link, deploy button, hamburger menu, and status widget */
+#MainMenu, 
+.stDeployButton, 
+div[data-testid="stStatusWidget"],
+div[data-testid="stToolbarActions"],
+a[href*="github.com"],
+footer { 
+    display: none !important; 
+    visibility: hidden !important; 
+}
+header[data-testid="stHeader"] { 
+    background: transparent !important; 
+    pointer-events: none !important;
+}
+div[data-testid="stToolbar"] { 
+    background: transparent !important; 
+    pointer-events: none !important;
+}
+button[data-testid="stExpandSidebarButton"] {
     display: flex !important;
     visibility: visible !important;
-    z-index: 999999 !important;
-    top: 12px !important;
-    left: 12px !important;
+    pointer-events: auto !important;
+    z-index: 99999 !important;
+    position: fixed !important;
+    top: 50px !important;
+    left: 8px !important;
+    width: 38px !important;
+    height: 38px !important;
+    cursor: pointer !important;
+    opacity: 0 !important;
 }
+div[data-testid="stSidebarHeader"] {
+    position: relative !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    padding: 12px 14px 0 14px !important;
+    min-height: 40px !important;
+}
+button[data-testid="stSidebarCollapseButton"] {
+    display: flex !important;
+    visibility: visible !important;
+    cursor: pointer !important;
+    color: #1f1f1f !important;
+    border-radius: 8px !important;
+}
+button[data-testid="stSidebarCollapseButton"]:hover {
+    background: #e0e4eb !important;
+}
+
+/* Collapsed Sidebar Rail - Light Mode */
+.collapsed-rail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 52px;
+    background: #f0f4f9;
+    border-right: 1px solid #dfe3e7;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0 16px 0;
+    z-index: 99990;
+    box-sizing: border-box;
+    user-select: none;
+}
+.collapsed-rail .rail-top, .collapsed-rail .rail-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+.collapsed-rail .rail-item {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #1f1f1f;
+    margin-bottom: 8px;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+.collapsed-rail .rail-item:hover {
+    background: #dfe3e7;
+    color: #000000;
+}
+.collapsed-rail .rail-logo {
+    font-size: 1.4rem;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+.collapsed-rail .rail-free-space {
+    flex-grow: 1;
+    width: 100%;
+    cursor: pointer;
+}
+.collapsed-rail .rail-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
 
 /* Light Theme Variables */
 :root {
@@ -251,20 +346,115 @@ div[data-baseweb="input"] input {
     elif theme_choice == "dark":
         css_payload = """
 <style>
-/* Privacy: Hide GitHub link, deploy button, and hamburger menu */
-div[data-testid="stToolbar"] { display: none !important; visibility: hidden !important; }
-#MainMenu { display: none !important; visibility: hidden !important; }
-footer { display: none !important; visibility: hidden !important; }
-.stDeployButton { display: none !important; visibility: hidden !important; }
-a[href*="github.com"] { display: none !important; visibility: hidden !important; }
-header[data-testid="stHeader"] { background: transparent !important; }
-div[data-testid="stSidebarCollapsedControl"] {
+/* Privacy: Hide GitHub link, deploy button, hamburger menu, and status widget */
+#MainMenu, 
+.stDeployButton, 
+div[data-testid="stStatusWidget"],
+div[data-testid="stToolbarActions"],
+a[href*="github.com"],
+footer { 
+    display: none !important; 
+    visibility: hidden !important; 
+}
+header[data-testid="stHeader"] { 
+    background: transparent !important; 
+    pointer-events: none !important;
+}
+div[data-testid="stToolbar"] { 
+    background: transparent !important; 
+    pointer-events: none !important;
+}
+button[data-testid="stExpandSidebarButton"] {
     display: flex !important;
     visibility: visible !important;
-    z-index: 999999 !important;
-    top: 12px !important;
-    left: 12px !important;
+    pointer-events: auto !important;
+    z-index: 99999 !important;
+    position: fixed !important;
+    top: 50px !important;
+    left: 8px !important;
+    width: 38px !important;
+    height: 38px !important;
+    cursor: pointer !important;
+    opacity: 0 !important;
 }
+div[data-testid="stSidebarHeader"] {
+    position: relative !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    padding: 12px 14px 0 14px !important;
+    min-height: 40px !important;
+}
+button[data-testid="stSidebarCollapseButton"] {
+    display: flex !important;
+    visibility: visible !important;
+    cursor: pointer !important;
+    color: #f0f4f9 !important;
+    border-radius: 8px !important;
+}
+button[data-testid="stSidebarCollapseButton"]:hover {
+    background: #282a2c !important;
+}
+
+/* Collapsed Sidebar Rail - Dark Mode */
+.collapsed-rail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 52px;
+    background: #131314;
+    border-right: 1px solid #282a2c;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0 16px 0;
+    z-index: 99990;
+    box-sizing: border-box;
+    user-select: none;
+}
+.collapsed-rail .rail-top, .collapsed-rail .rail-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+.collapsed-rail .rail-item {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    cursor: pointer;
+    color: #f0f4f9;
+    margin-bottom: 8px;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+.collapsed-rail .rail-item:hover {
+    background: #282a2c;
+    color: #ffffff;
+}
+.collapsed-rail .rail-logo {
+    font-size: 1.4rem;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+.collapsed-rail .rail-free-space {
+    flex-grow: 1;
+    width: 100%;
+    cursor: pointer;
+}
+.collapsed-rail .rail-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
 
 /* Dark Theme Variables */
 :root {
@@ -376,19 +566,105 @@ section[data-testid="stSidebar"] {
         # Device / System theme
         css_payload = """
 <style>
-div[data-testid="stToolbar"] { display: none !important; visibility: hidden !important; }
-#MainMenu { display: none !important; visibility: hidden !important; }
-footer { display: none !important; visibility: hidden !important; }
-.stDeployButton { display: none !important; visibility: hidden !important; }
-a[href*="github.com"] { display: none !important; visibility: hidden !important; }
-header[data-testid="stHeader"] { background: transparent !important; }
-div[data-testid="stSidebarCollapsedControl"] {
+/* Privacy: Hide GitHub link, deploy button, hamburger menu, and status widget */
+
+#MainMenu, 
+.stDeployButton, 
+div[data-testid="stStatusWidget"],
+div[data-testid="stToolbarActions"],
+a[href*="github.com"],
+footer { 
+    display: none !important; 
+    visibility: hidden !important; 
+}
+header[data-testid="stHeader"] { 
+    background: transparent !important; 
+    pointer-events: none !important;
+}
+div[data-testid="stToolbar"] { 
+    background: transparent !important; 
+    pointer-events: none !important;
+}
+button[data-testid="stExpandSidebarButton"] {
     display: flex !important;
     visibility: visible !important;
-    z-index: 999999 !important;
-    top: 12px !important;
-    left: 12px !important;
+    pointer-events: auto !important;
+    z-index: 99999 !important;
+    position: fixed !important;
+    top: 50px !important;
+    left: 8px !important;
+    width: 38px !important;
+    height: 38px !important;
+    cursor: pointer !important;
+    opacity: 0 !important;
 }
+div[data-testid="stSidebarHeader"] {
+    position: relative !important;
+    display: flex !important;
+    justify-content: flex-end !important;
+    padding: 12px 14px 0 14px !important;
+    min-height: 40px !important;
+}
+button[data-testid="stSidebarCollapseButton"] {
+    display: flex !important;
+    visibility: visible !important;
+    cursor: pointer !important;
+    border-radius: 8px !important;
+}
+
+/* Collapsed Sidebar Rail Base */
+.collapsed-rail {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 52px;
+    display: none;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 0 16px 0;
+    z-index: 99990;
+    box-sizing: border-box;
+    user-select: none;
+}
+.collapsed-rail .rail-top, .collapsed-rail .rail-bottom {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+.collapsed-rail .rail-item {
+    width: 38px;
+    height: 38px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    cursor: pointer;
+    margin-bottom: 8px;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+.collapsed-rail .rail-logo {
+    font-size: 1.4rem;
+    cursor: pointer;
+    margin-bottom: 12px;
+}
+.collapsed-rail .rail-free-space {
+    flex-grow: 1;
+    width: 100%;
+    cursor: pointer;
+}
+.collapsed-rail .rail-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #059669, #10b981);
+    color: #ffffff;
+    font-weight: 700;
+    font-size: 0.85rem;
+}
+
 
 @media (prefers-color-scheme: light) {
     .stApp { background: radial-gradient(circle at 50% 30%, #eef4ff 0%, #f4f7fc 50%, #ffffff 100%) !important; color: #1f1f1f !important; }
@@ -401,6 +677,11 @@ div[data-testid="stSidebarCollapsedControl"] {
     .citation-card * { color: #1e293b !important; }
     .hero-title { color: #1f1f1f !important; }
     .hero-sub { color: #444746 !important; }
+    .collapsed-rail { background: #f0f4f9; border-right: 1px solid #dfe3e7; }
+    .collapsed-rail .rail-item { color: #1f1f1f; }
+    .collapsed-rail .rail-item:hover { background: #dfe3e7; color: #000000; }
+    button[data-testid="stSidebarCollapseButton"] { color: #1f1f1f !important; }
+    button[data-testid="stSidebarCollapseButton"]:hover { background: #e0e4eb !important; }
 }
 @media (prefers-color-scheme: dark) {
     .stApp { background: radial-gradient(circle at 50% 30%, #17243c 0%, #0d121c 55%, #07090e 100%) !important; color: #f0f4f9 !important; }
@@ -409,7 +690,13 @@ div[data-testid="stSidebarCollapsedControl"] {
     .citation-card { background-color: rgba(255, 255, 255, 0.04) !important; border-left: 3px solid #10b981 !important; color: #e2e8f0 !important; }
     .hero-title { color: #f0f4f9 !important; }
     .hero-sub { color: #c4c7c5 !important; }
+    .collapsed-rail { background: #131314; border-right: 1px solid #282a2c; }
+    .collapsed-rail .rail-item { color: #f0f4f9; }
+    .collapsed-rail .rail-item:hover { background: #282a2c; color: #ffffff; }
+    button[data-testid="stSidebarCollapseButton"] { color: #f0f4f9 !important; }
+    button[data-testid="stSidebarCollapseButton"]:hover { background: #282a2c !important; }
 }
+
 .badge { display: inline-block; padding: 3px 9px; border-radius: 12px; background: linear-gradient(135deg, #059669, #10b981); color: white !important; font-size: 0.75em; font-weight: 600; }
 .admin-card { background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 14px; padding: 16px; text-align: center; margin-bottom: 10px; }
 .admin-stat { font-size: 2.2em; font-weight: 800; color: #34d399; }
@@ -718,7 +1005,168 @@ def get_format_icon(filename: str) -> str:
         return "📄"
     return "📁"
 
+def render_collapsed_sidebar_rail(username: str, role_label: str, initial_letter: str):
+    """
+    Renders the persistent collapsed icon rail on the left side of the screen.
+    Includes Avocado logo, toggle button, new chat, search, document vault, settings,
+    and profile avatar. Clicking ANYWHERE in the free space of the vertical rail line
+    expands the sidebar.
+    """
+    rail_html = f"""
+    <div id="collapsed-sidebar-rail" class="collapsed-rail">
+      <div class="rail-top">
+        <div class="rail-item rail-logo" id="rail-logo-btn" title="AI Assistant">🥑</div>
+        <div class="rail-item" id="rail-toggle-btn" title="Expand Sidebar (click anywhere on line)">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/>
+          </svg>
+        </div>
+        <div class="rail-item" id="rail-new-chat-btn" title="New chat">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+          </svg>
+        </div>
+        <div class="rail-item" id="rail-search-btn" title="Recent chats">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>
+          </svg>
+        </div>
+        <div class="rail-item" id="rail-vault-btn" title="Document Vault">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/>
+          </svg>
+        </div>
+      </div>
+      
+      <!-- Free space along the sidebar line: clicking anywhere here opens the sidebar -->
+      <div class="rail-free-space" id="rail-free-space" title="Click anywhere along this line to open sidebar"></div>
+      
+      <div class="rail-bottom">
+        <div class="rail-item" id="rail-settings-btn" title="Settings &amp; Preferences">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </div>
+        <div class="rail-item rail-avatar" id="rail-profile-btn" title="{username} ({role_label})">
+          {initial_letter}
+        </div>
+      </div>
+    </div>
+
+    <script>
+    (function() {{
+        function getSidebar() {{
+            return document.querySelector('section[data-testid="stSidebar"]');
+        }}
+
+        function isSidebarExpanded() {{
+            const sb = getSidebar();
+            if (!sb) return false;
+            return sb.getAttribute('aria-expanded') === 'true';
+        }}
+
+        function openSidebar() {{
+            const expBtn = document.querySelector('button[data-testid="stExpandSidebarButton"]');
+            if (expBtn) {{
+                expBtn.click();
+                return;
+            }}
+            const sb = getSidebar();
+            if (sb && sb.getAttribute('aria-expanded') === 'false') {{
+                const collapseBtn = sb.querySelector('button[data-testid="stSidebarCollapseButton"]');
+                if (collapseBtn) {{
+                    collapseBtn.click();
+                    return;
+                }}
+            }}
+        }}
+
+        function triggerNewChat() {{
+            openSidebar();
+            setTimeout(() => {{
+                const btns = Array.from(document.querySelectorAll('section[data-testid="stSidebar"] button'));
+                const newChatBtn = btns.find(b => b.textContent && b.textContent.includes('New chat'));
+                if (newChatBtn) newChatBtn.click();
+            }}, 150);
+        }}
+
+        function triggerSettings() {{
+            openSidebar();
+            setTimeout(() => {{
+                const expanders = Array.from(document.querySelectorAll('section[data-testid="stSidebar"] details'));
+                const settingsExp = expanders.find(e => e.textContent && e.textContent.includes('Settings'));
+                if (settingsExp) {{
+                    settingsExp.open = true;
+                    settingsExp.scrollIntoView({{ behavior: 'smooth' }});
+                }}
+            }}, 150);
+        }}
+
+        function updateRailVisibility() {{
+            const rail = document.getElementById('collapsed-sidebar-rail');
+            if (!rail) return;
+            const expanded = isSidebarExpanded();
+            rail.style.display = expanded ? 'none' : 'flex';
+
+            const main = document.querySelector('section.main');
+            if (main) {{
+                main.style.marginLeft = expanded ? '0px' : '52px';
+            }}
+        }}
+
+        function attachRailListeners() {{
+            const rail = document.getElementById('collapsed-sidebar-rail');
+            if (!rail || rail.dataset.bound === 'true') return;
+            rail.dataset.bound = 'true';
+
+            const freeSpace = document.getElementById('rail-free-space');
+            if (freeSpace) freeSpace.addEventListener('click', openSidebar);
+
+            const toggleBtn = document.getElementById('rail-toggle-btn');
+            if (toggleBtn) toggleBtn.addEventListener('click', openSidebar);
+
+            const logoBtn = document.getElementById('rail-logo-btn');
+            if (logoBtn) logoBtn.addEventListener('click', openSidebar);
+
+            const newChat = document.getElementById('rail-new-chat-btn');
+            if (newChat) newChat.addEventListener('click', triggerNewChat);
+
+            const searchBtn = document.getElementById('rail-search-btn');
+            if (searchBtn) searchBtn.addEventListener('click', openSidebar);
+
+            const vaultBtn = document.getElementById('rail-vault-btn');
+            if (vaultBtn) vaultBtn.addEventListener('click', openSidebar);
+
+            const settingsBtn = document.getElementById('rail-settings-btn');
+            if (settingsBtn) settingsBtn.addEventListener('click', triggerSettings);
+
+            const profileBtn = document.getElementById('rail-profile-btn');
+            if (profileBtn) profileBtn.addEventListener('click', triggerSettings);
+
+            rail.addEventListener('click', function(e) {{
+                if (e.target === rail || e.target.classList.contains('rail-top') || e.target.classList.contains('rail-bottom') || e.target.classList.contains('rail-free-space')) {{
+                    openSidebar();
+                }}
+            }});
+        }}
+
+        attachRailListeners();
+        updateRailVisibility();
+
+        const observer = new MutationObserver(() => {{
+            attachRailListeners();
+            updateRailVisibility();
+        }});
+        observer.observe(document.body, {{ childList: true, subtree: true, attributes: true, attributeFilter: ['aria-expanded'] }});
+        setInterval(updateRailVisibility, 250);
+    }})();
+    </script>
+    """
+    st.html(rail_html, unsafe_allow_javascript=True)
+
 def main():
+
     # 0. Session Persistence across Browser Page Refresh
     if st.session_state.user is None:
         token = st.query_params.get("session_token")
@@ -758,17 +1206,29 @@ def main():
 
     active_session_id = st.session_state.current_session_id
 
+    # Presentation variables
+    initial_letter = username[:1].upper() if username else "G"
+    role_label = "Pro" if is_authenticated else "Guest"
+    if is_admin:
+        role_label = "Master Admin"
+
+    # Persistent collapsed icon rail with full-height line click-to-open
+    render_collapsed_sidebar_rail(username, role_label, initial_letter)
+
     # =========================================================================
     # SIDEBAR: Google Gemini-style Layout (Avocado, Mode Pills, Actions, Recents, User)
     # =========================================================================
     with st.sidebar:
-        # Top Header: Avocado Logo + Brand Name
+        # Top Header: Avocado Logo + Brand Name (aligned with collapse button)
         st.markdown("""
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 0.8rem; padding: 4px 0;">
-            <span style="font-size: 1.8rem;">🥑</span>
-            <div style="font-weight: 700; font-size: 1.2rem; letter-spacing: -0.01em;">AI Assistant</div>
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-top: -38px; margin-bottom: 0.8rem; padding: 4px 0; height: 38px;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 1.6rem;">🥑</span>
+                <div style="font-weight: 700; font-size: 1.15rem; letter-spacing: -0.01em;">AI Assistant</div>
+            </div>
         </div>
         """, unsafe_allow_html=True)
+
 
         # Mode Pills: [ Chat ] [ Deep Insights ]
         col_m1, col_m2 = st.columns(2)
