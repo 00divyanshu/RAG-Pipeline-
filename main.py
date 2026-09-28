@@ -22,20 +22,23 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 def ingest_cmd(args):
-    """Ingests all PDFs from data/docs and indexes them in ChromaDB."""
+    """Ingests all supported documents from data/docs and indexes them."""
+    namespace = getattr(args, "namespace", "default")
+    backend_name = "Pinecone Serverless" if config.PINECONE_API_KEY else f"ChromaDB ({config.CHROMA_PERSIST_DIR})"
     print("=" * 60)
     print(" Starting Document Ingestion Pipeline")
     print("=" * 60)
     print(f" Source Directory    : {config.DOCS_DIR}")
-    print(f" Vector Store Path   : {config.CHROMA_PERSIST_DIR}")
+    print(f" Vector Backend      : {backend_name}")
+    print(f" Tenant Vault / NS   : {namespace}")
     print(f" Embedding Model     : {config.EMBEDDING_MODEL}")
     print(f" Chunk Size / Overlap: {config.CHUNK_SIZE} / {config.CHUNK_OVERLAP}")
     print("=" * 60)
 
     docs = load_documents_from_directory(config.DOCS_DIR)
     if not docs:
-        print(f"\n[!] No PDF documents found in '{config.DOCS_DIR}'.")
-        print("    Please drop one or more .pdf files into that folder and re-run ingest.\n")
+        print(f"\n[!] No documents found in '{config.DOCS_DIR}'.")
+        print("    Please drop supported files (.pdf, .docx, .csv, .txt, .md) into that folder and re-run ingest.\n")
         return
 
     chunks = split_documents(docs, chunk_size=config.CHUNK_SIZE, chunk_overlap=config.CHUNK_OVERLAP)
@@ -46,14 +49,15 @@ def ingest_cmd(args):
         persist_directory=config.CHROMA_PERSIST_DIR,
         embeddings=embeddings,
         recreate=args.recreate,
+        namespace=namespace,
     )
 
-    print("\n[+] Ingestion complete! The vector database is ready for queries.\n")
+    print(f"\n[+] Ingestion complete! Indexed {len(chunks)} chunks into vault '{namespace}'.\n")
 
-def get_pipeline():
+def get_pipeline(namespace: str = "default"):
     """Builds and returns the RAG pipeline."""
     embeddings = get_embeddings()
-    vector_store = get_vector_store(config.CHROMA_PERSIST_DIR, embeddings)
+    vector_store = get_vector_store(config.CHROMA_PERSIST_DIR, embeddings, namespace=namespace)
     retriever = get_retriever(vector_store, search_type="similarity", k=config.RETRIEVER_K)
     return RAGPipeline(
         retriever=retriever,
@@ -78,17 +82,22 @@ def print_result(result: dict):
 
 def query_cmd(args):
     """Executes a single question."""
-    pipeline = get_pipeline()
-    print(f"\nProcessing query with LLM ({config.LLM_MODEL})...")
+    namespace = getattr(args, "namespace", "default")
+    pipeline = get_pipeline(namespace=namespace)
+    provider_name = "Groq LPU" if config.LLM_PROVIDER == "groq" else "Google Gemini"
+    print(f"\nProcessing query with {provider_name} ({config.LLM_MODEL}) in vault '{namespace}'...")
     result = pipeline.ask(args.question)
     print_result(result)
 
 def chat_cmd(args):
     """Starts an interactive Q&A session in the terminal."""
-    pipeline = get_pipeline()
+    namespace = getattr(args, "namespace", "default")
+    pipeline = get_pipeline(namespace=namespace)
+    provider_name = "Groq LPU" if config.LLM_PROVIDER == "groq" else "Google Gemini"
     print("=" * 60)
     print(" Interactive RAG Chat Session")
-    print(f" LLM: {config.LLM_MODEL} | Embeddings: {config.EMBEDDING_MODEL}")
+    print(f" Engine: {provider_name} ({config.LLM_MODEL}) | Embeddings: {config.EMBEDDING_MODEL}")
+    print(f" Target Vault: {namespace}")
     print(" Type 'exit', 'quit', or 'q' to end the session.")
     print("=" * 60)
 
@@ -108,8 +117,10 @@ def chat_cmd(args):
 
 def evaluate_cmd(args):
     """Executes a question and runs quality evaluation metrics on the result."""
-    pipeline = get_pipeline()
-    print(f"\nProcessing query with LLM ({config.LLM_MODEL})...")
+    namespace = getattr(args, "namespace", "default")
+    pipeline = get_pipeline(namespace=namespace)
+    provider_name = "Groq LPU" if config.LLM_PROVIDER == "groq" else "Google Gemini"
+    print(f"\nProcessing query with {provider_name} ({config.LLM_MODEL}) in vault '{namespace}'...")
     result = pipeline.ask(args.question)
     print_result(result)
 
@@ -130,23 +141,41 @@ def evaluate_cmd(args):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Local PDF RAG with LangChain and Ollama",
+        description="Enterprise AI Assistant & Document Intelligence CLI",
         formatter_class=argparse.RawDescriptionHelpFormatter,
+    )
+    parser.add_argument(
+        "--namespace",
+        type=str,
+        default="default",
+        help="Tenant vault namespace to target (default: 'default')",
     )
     subparsers = parser.add_subparsers(dest="command", help="Available commands")
 
     # Ingest command
-    ingest_parser = subparsers.add_parser("ingest", help="Index PDFs from data/docs into ChromaDB")
+    ingest_parser = subparsers.add_parser("ingest", help="Index documents from data/docs into vector storage")
     ingest_parser.add_argument(
         "--recreate",
         action="store_true",
         help="Wipe and rebuild the vector database from scratch",
     )
+    ingest_parser.add_argument(
+        "--namespace",
+        type=str,
+        default="default",
+        help="Tenant vault namespace to index into (default: 'default')",
+    )
     ingest_parser.set_defaults(func=ingest_cmd)
 
     # Query command
     query_parser = subparsers.add_parser("query", help="Ask a single question")
-    query_parser.add_argument("question", type=str, help="Question to ask the PDF knowledge base")
+    query_parser.add_argument("question", type=str, help="Question to ask the knowledge base")
+    query_parser.add_argument(
+        "--namespace",
+        type=str,
+        default="default",
+        help="Tenant vault namespace to query (default: 'default')",
+    )
     query_parser.set_defaults(func=query_cmd)
 
     # Evaluate command
@@ -155,12 +184,24 @@ def main():
     eval_parser.add_argument(
         "--with-judge",
         action="store_true",
-        help="Use local LLM-as-a-judge to score answer faithfulness and relevance",
+        help="Use LLM-as-a-judge to score answer faithfulness and relevance",
+    )
+    eval_parser.add_argument(
+        "--namespace",
+        type=str,
+        default="default",
+        help="Tenant vault namespace to evaluate (default: 'default')",
     )
     eval_parser.set_defaults(func=evaluate_cmd)
 
     # Chat command
     chat_parser = subparsers.add_parser("chat", help="Start an interactive chat session")
+    chat_parser.add_argument(
+        "--namespace",
+        type=str,
+        default="default",
+        help="Tenant vault namespace to chat within (default: 'default')",
+    )
     chat_parser.set_defaults(func=chat_cmd)
 
     args = parser.parse_args()

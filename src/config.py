@@ -20,12 +20,12 @@ def _get_config_val(key: str, default: str = "") -> str:
     """Gets configuration from session state, Streamlit secrets, environment variables, or default."""
     try:
         import streamlit as st
-        # First check session state (e.g. entered via UI)
-        if hasattr(st, "session_state") and key in st.session_state and st.session_state[key]:
-            return str(st.session_state[key]).strip()
-        # Next check st.secrets (e.g. configured in Streamlit Cloud Dashboard)
-        if hasattr(st, "secrets") and key in st.secrets and st.secrets[key]:
-            return str(st.secrets[key]).strip()
+        st_runtime = getattr(st, "runtime", None)
+        if st_runtime is not None and getattr(st_runtime, "exists", lambda: False)():
+            if hasattr(st, "session_state") and key in st.session_state and st.session_state[key]:
+                return str(st.session_state[key]).strip()
+            if hasattr(st, "secrets") and key in st.secrets and st.secrets[key]:
+                return str(st.secrets[key]).strip()
     except Exception:
         pass
     return os.getenv(key, default).strip()

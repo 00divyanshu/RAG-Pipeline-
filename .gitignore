@@ -33,7 +33,7 @@ Thumbs.db
 .ruff_cache/
 data/local_app.db
 
-# User uploaded documents (keep sample_policy.pdf)
+# User uploaded documents (keep sample_company_policy.pdf for test suite)
 data/docs/*
-!data/docs/sample_policy.pdf
+!data/docs/sample_company_policy.pdf
 data/host_errors.json
